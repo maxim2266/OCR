@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+
+# version
+declare -r VERSION=0.0.1
+
+# number of processors
+NPROC=$(nproc) ; [ $? -ne 0 ] && exit 1 ; declare -r -i NPROC
+
+# helper functions
+function _check_program() {
+	# https://stackoverflow.com/questions/592620/check-if-a-program-exists-from-a-bash-script
+	command -p -v "$@" >/dev/null 2>&1 || { echo "ERROR: Program \"$@\" is not found." >&2 ; exit 1 ; }
+}
+
+function _show_usage() {
+	cat << EOF >&2
+Usage: $0 [OPTION]... FILE
+Extract text from a scanned pdf or djvu document FILE.
+Options:
+  -f N     first page number (optional, default: 1)
+  -l N     last page number (optional, default: last page of the document)
+  -L LANG  document language (optional, default: 'eng')
+  -o FILE  output file name (optional, default: stdout)
+  -w DIR   working directory (optional, default: a temporary directory)
+  -h       display this help and exit
+  -v       output version information and exit
+EOF
+}
+
+# pdfimages
+_check_program pdfimages
+
+if [[ -z $(pdfimages --help 2>&1 | grep -E '^\s+\-tiff\s+') ]]
+then
+	echo "ERROR: Current version of \"pdfimages\" does not support .tiff output format" >&2
+	exit 1
+fi
+
+# tesseract
+_check_program tesseract
+
+declare -r TESS_VER=$(tesseract -v 2>&1 | head -q -n 1 | cut -s -d " " -f 2 )
+
+if [[ ${TESS_VER%%.[0-9]*} -lt 3 ]]	# major >= 3
+then
+	echo "ERROR: Current \"tesseract\" version $TESS_VER is not supported" >&2
+	exit 1
+fi
+
+# options
+while getopts "f:l:L:o:w:vh" opt
+do
+	case $opt in
+		f)	case $OPTARG in
+				''|*[!0-9]*)	echo "Invalid parameter for -$opt option: $OPTARG" >&2 ; exit 1 ;;
+				*)				FIRST_PAGE=$OPTARG ;;
+			esac ;;
+		l)	case $OPTARG in
+				''|*[!0-9]*)	echo "Invalid parameter for -$opt option: $OPTARG" >&2 ; exit 1 ;;
+				*)				LAST_PAGE=$OPTARG ;;
+			esac ;;
+		L)	OCR_LANG=$OPTARG ;;
+		o)	declare -r OUT_FILE="$OPTARG" ;;
+		w)	WORK_DIR=$OPTARG ;;
+		v)	echo v$VERSION ; exit 1 ;;
+		h)	_show_usage ; exit 1 ;;
+		\?)	exit 1 ;;
+	esac
+done
+
+shift $((OPTIND-1)) # remove parsed options and args from $@ list
+
+# input file
+case $# in
+	0)	printf "ERROR: Input file is not specified\n\n" >&2 ; _show_usage ; exit 1 ;;
+	1)	declare -r INPUT_FILE=$1 ;;
+#	1)	declare -r INPUT_FILE=$1 ; [[ -f "$INPUT_FILE" ]] || { echo "File not found: $INPUT_FILE" >&2 ; exit 1 ; } ;;
+	*)	echo "ERROR: Cannot process more than one input file" >&2 ; exit 1 ;;
+esac
+
+# working directory
+if [[ -n "$WORK_DIR" ]]
+then
+	WORK_DIR=$(echo $WORK_DIR | sed 's:/*$::')	# remove all trailing slashes
+
+	if [[ -z "$WORK_DIR" ]]
+	then
+		echo "ERROR: Invalid name for working directory" >&2
+		exit 1
+	elif [[ ! -d "$WORK_DIR" ]]	# create if does not exists
+	then
+		mkdir "$WORK_DIR" || exit 1
+	elif [[ -n $(ls -A "$WORK_DIR") ]]	# clear if not empty
+	then
+		rm "$WORK_DIR"/* || exit 1
+	fi
+else
+	WORK_DIR=$(mktemp -d --tmpdir ocr.XXXXXXXXXX) || exit 1
+	trap "rm -rf $WORK_DIR" 0 SIGINT SIGQUIT SIGTERM
+fi
+
+declare -r WORK_DIR
+
+#defaults
+declare -r OCR_LANG=${OCR_LANG:-eng}
+
+# output redirection
+if [[ -n "$OUT_FILE" ]]	# https://stackoverflow.com/a/20564208
+then
+	exec 1<&-
+	exec 1>"$OUT_FILE" || exit 1
+fi
+
+
+# test
+echo "Language:     $OCR_LANG"
+echo "First page:   $FIRST_PAGE"
+echo "Last page:    $LAST_PAGE"
+echo "Output:       $OUT_FILE"
+echo "Input:        $INPUT_FILE"
+echo "Working dir.: $WORK_DIR"
+
+
+#echo remaining $# arguments: $@
