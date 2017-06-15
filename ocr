@@ -27,6 +27,11 @@ Options:
 EOF
 }
 
+function _ddjvu_exit() {
+	head -q -n 1 "$1" | sed 's/^ddjvu:[[:space:]]*\[[^]]*\]/ddjvu:/g' >&2
+	exit 1
+}
+
 # pdfimages
 _check_program pdfimages
 
@@ -75,7 +80,7 @@ case $# in
 	0)	printf "ERROR: Input file is not specified\n\n" >&2 ; _show_usage ; exit 1 ;;
 	1)	declare -r INPUT_FILE=$1 ;;
 #	1)	declare -r INPUT_FILE=$1 ; [[ -f "$INPUT_FILE" ]] || { echo "File not found: $INPUT_FILE" >&2 ; exit 1 ; } ;;
-	*)	echo "ERROR: Cannot process more than one input file" >&2 ; exit 1 ;;
+	*)	echo "ERROR: Cannot process more than one input file: $@" >&2 ; exit 1 ;;
 esac
 
 # working directory
@@ -111,6 +116,13 @@ then
 	exec 1>"$OUT_FILE" || exit 1
 fi
 
+# extract images
+case "${INPUT_FILE##*.}" in
+	pdf)	pdfimages -tiff -f ${FIRST_PAGE:-1} -l ${LAST_PAGE:-5000} "$INPUT_FILE" "$WORK_DIR/img" || exit 1 ;;
+	djvu)	ddjvu -format=tiff -mode=black -eachpage -page=${FIRST_PAGE:-1}-${LAST_PAGE:-5000} "$INPUT_FILE" "$WORK_DIR/img-%05d.tif" 2>"$WORK_DIR/ddjvu-error" || _ddjvu_exit "$WORK_DIR/ddjvu-error" ;;
+	*)		echo "ERROR: Unsupported file type: $INPUT_FILE" >&2 ; exit 1 ;;
+esac
+
 
 # test
 echo "Language:     $OCR_LANG"
@@ -120,5 +132,7 @@ echo "Output:       $OUT_FILE"
 echo "Input:        $INPUT_FILE"
 echo "Working dir.: $WORK_DIR"
 
+echo
+ls "$WORK_DIR"
 
 #echo remaining $# arguments: $@
