@@ -147,19 +147,5 @@ then
 fi
 
 # output
-find "$WORK_DIR" -maxdepth 1 -type f -name \*.tif.txt -print0 | sort -z | xargs -0 -n 1 cat
+find "$WORK_DIR" -maxdepth 1 -type f -name \*.tif.txt -print0 | sort -z | xargs -0 cat
 
-# test
-echo
-echo "---------------------------------------------"
-echo "Language:     $OCR_LANG"
-echo "First page:   $FIRST_PAGE"
-echo "Last page:    $LAST_PAGE"
-echo "Output:       $OUT_FILE"
-echo "Input:        $INPUT_FILE"
-echo "Working dir.: $WORK_DIR"
-
-echo
-ls "$WORK_DIR"
-
-#echo remaining $# arguments: $@
