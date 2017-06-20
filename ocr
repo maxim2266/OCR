@@ -114,8 +114,7 @@ then
 	elif [[ ! -d "$WORK_DIR" ]]	# create if does not exists
 	then
 		mkdir "$WORK_DIR" || exit 1
-	elif [[ -n $(ls -A "$WORK_DIR") ]]	# clear if not empty
-	then
+	else	# clear if not empty
 		find "$WORK_DIR" -maxdepth 1 -type f \
 			\( -name \*.tif -o -name \*.tif.err -o -name \*.tif.txt -o -name ddjvu-error \) \
 			-delete
