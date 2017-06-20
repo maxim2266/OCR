@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # version
-declare -r VERSION=0.0.1
+declare -r VERSION=0.5.0
 
 # helper functions
 function _check_program() {
