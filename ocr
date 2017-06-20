@@ -116,7 +116,9 @@ then
 		mkdir "$WORK_DIR" || exit 1
 	elif [[ -n $(ls -A "$WORK_DIR") ]]	# clear if not empty
 	then
-		find "$WORK_DIR" -type f \( -name \*.tif -o -name \*.tif.err -o -name \*.tif.txt -o -name ddjvu-error \) -delete
+		find "$WORK_DIR" -maxdepth 1 -type f \
+			\( -name \*.tif -o -name \*.tif.err -o -name \*.tif.txt -o -name ddjvu-error \) \
+			-delete
 	fi
 else
 	WORK_DIR=$(mktemp -d --tmpdir ocr.XXXXXXXXXX) || exit 1
