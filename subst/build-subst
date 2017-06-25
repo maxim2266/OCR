@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+FILES=subst.go
+
+go fmt "$FILES" && go build -o subst "$FILES"
+
