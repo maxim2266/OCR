@@ -33,35 +33,23 @@
 # version
 declare -r VERSION=0.5.0
 
-# helper functions
-function _check_program() {
-	# https://stackoverflow.com/questions/592620/check-if-a-program-exists-from-a-bash-script
-	command -p -v "$@" >/dev/null 2>&1 || { echo "ERROR: Program \"$@\" is not found." >&2 ; exit 1 ; }
-}
+# constants
+declare -r EXT=pgm
 
+# helper functions
 function _show_usage() {
 	cat <<-EOF >&2
-	Usage: $0 [OPTION]... FILE
-	Extracts text from a scanned pdf or djvu document FILE.
+	Usage: $0 [OPTION]... DIR
+	Extracts text from all image files in DIR.
 	Options:
-	  -f N     first page number (optional, default: 1)
-	  -l N     last page number (optional, default: last page of the document)
 	  -L LANG  document language (optional, default: 'eng')
 	  -o FILE  output file name (optional, default: stdout)
-	  -w DIR   working directory (optional, default: a temporary directory)
 	  -h       display this help and exit
 	  -v       output version information and exit
 	EOF
 }
 
-function _ddjvu_exit() {
-	head -q -n 1 "$1" | sed 's/^ddjvu:[[:space:]]*\[[^]]*\]/ddjvu:/g' >&2
-	exit 1
-}
-
-# tesseract
-_check_program tesseract
-
+# check tesseract version
 declare -r TESS_VER=$(tesseract -v 2>&1 | head -q -n 1 | cut -s -d " " -f 2 )
 
 if [[ ${TESS_VER%%.[0-9]*} -lt 3 ]]	# major >= 3
@@ -71,20 +59,11 @@ then
 fi
 
 # options
-while getopts "f:l:L:o:w:vh" opt
+while getopts "L:o:vh" opt
 do
 	case $opt in
-		f)	case $OPTARG in
-				''|*[!0-9]*)	echo "Invalid parameter for -$opt option: $OPTARG" >&2 ; exit 1 ;;
-				*)				FIRST_PAGE=$OPTARG ;;
-			esac ;;
-		l)	case $OPTARG in
-				''|*[!0-9]*)	echo "Invalid parameter for -$opt option: $OPTARG" >&2 ; exit 1 ;;
-				*)				LAST_PAGE=$OPTARG ;;
-			esac ;;
 		L)	OCR_LANG=$OPTARG ;;
-		o)	declare -r OUT_FILE="$OPTARG" ;;
-		w)	WORK_DIR=$OPTARG ;;
+		o)	OUT_FILE="$OPTARG" ;;
 		v)	echo v$VERSION ; exit 1 ;;
 		h)	_show_usage ; exit 1 ;;
 		\?)	exit 1 ;;
@@ -93,85 +72,36 @@ done
 
 shift $((OPTIND-1)) # remove parsed options and args from $@ list
 
-# input file
+# input directory
 case $# in
-	1)	declare -r INPUT_FILE=$1
-		[[ -f "$INPUT_FILE" ]] || { echo "ERROR: File not found: $INPUT_FILE" >&2 ; exit 1 ; } ;;
-
-	0)	printf "ERROR: Input file is not specified\n\n" >&2 ; _show_usage ; exit 1 ;;
-	*)	echo "ERROR: Cannot process more than one input file: $@" >&2 ; exit 1 ;;
+	1)	declare -r INPUT_DIR=$(echo "$1" | sed 's:/*$::')	# remove all trailing slashes
+		[[ -d "$INPUT_DIR" ]] || { echo "ERROR: Input is not a directory, or it does not exist: \"$INPUT_DIR\"" >&2 ; exit 1 ; }
+		[[ -n $(find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT) ]] || { echo "ERROR: No files to process in \"$INPUT_DIR\"" >&2 ; exit 1 ; }
+		;;
+	0)	declare -r INPUT_DIR=.
+		;;
+	*)	echo "ERROR: Cannot process more than one input directory: $@" >&2 ; exit 1
+		;;
 esac
 
-# working directory
-if [[ -n "$WORK_DIR" ]]
-then
-	WORK_DIR=$(echo $WORK_DIR | sed 's:/*$::')	# remove all trailing slashes
-
-	if [[ -z "$WORK_DIR" ]]
-	then
-		echo "ERROR: Invalid name for working directory" >&2
-		exit 1
-	elif [[ ! -d "$WORK_DIR" ]]	# create if does not exists
-	then
-		mkdir "$WORK_DIR" || exit 1
-	else	# clear if not empty
-		find "$WORK_DIR" -maxdepth 1 -type f \
-			\( -name \*.tif -o -name \*.tif.err -o -name \*.tif.txt -o -name ddjvu-error \) \
-			-delete
-	fi
-else
-	WORK_DIR=$(mktemp -d --tmpdir ocr.XXXXXXXXXX) || exit 1
-	trap "rm -rf $WORK_DIR" 0 SIGINT SIGQUIT SIGTERM
-fi
-
-declare -r WORK_DIR
-
-#defaults
+# language
 declare -r OCR_LANG=${OCR_LANG:-eng}
 
-# extract images
-case "${INPUT_FILE##*.}" in
-	PDF|pdf)	# pdfimages
-		_check_program pdfimages
-
-		if [[ -z $(pdfimages --help 2>&1 | grep -E '^\s+\-tiff\s+') ]]
-		then
-			echo "ERROR: Current version of \"pdfimages\" does not support .tiff output format" >&2
-			exit 1
-		fi
-
-		pdfimages -tiff -f ${FIRST_PAGE:-1} -l ${LAST_PAGE:-5000} "$INPUT_FILE" "$WORK_DIR/img" || exit 1 ;;
-
-	djvu)	# ddjvu
-		_check_program ddjvu
-		ddjvu -format=tiff -mode=black -eachpage -page=${FIRST_PAGE:-1}-${LAST_PAGE:-5000} "$INPUT_FILE" "$WORK_DIR/img-%05d.tif" 2>"$WORK_DIR/ddjvu-error" \
-		|| _ddjvu_exit "$WORK_DIR/ddjvu-error" ;;
-
-	*)	# error
-		echo "ERROR: Unsupported file type: $INPUT_FILE" >&2 ; exit 1 ;;
-esac
-
-if [[ -z $(find "$WORK_DIR" -maxdepth 1 -type f -name \*.tif) ]]	# for some reason 'ls' finds nothing at this point
-then
-	echo "ERROR: No images extracted, something must have gone wrong" >&2
-	exit 1
-fi
-
-# number of processors
-NPROC=$(nproc) ; [ $? -ne 0 ] && exit 1 ; declare -r -i NPROC
+# cleanup input directory
+find "$INPUT_DIR" -maxdepth 1 -type f \( -name \*.$EXT.err -o -name \*.$EXT.txt \) -delete
 
 # OCR
-find "$WORK_DIR" -maxdepth 1 -type f -name \*.tif -print0 | xargs -0 -n 1 -P $NPROC -I % \
-	sh -c "tesseract \"%\" \"%\" -l \"$OCR_LANG\" 2>\"%.err\" || exit 255"
+find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT -print0 | xargs -0 -n 1 -P $(nproc) -I % \
+	sh -c "tesseract \"%\" \"%\" -l $OCR_LANG 2>\"%.err\" || exit 255"
 
 if [[ $? -ne 0 ]]
 then
-	find "$WORK_DIR" -maxdepth 1 -type f -name \*.tif.err -exec grep -i -E '^ERROR:?\s+' "{}" \; >&2
+	find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT.err -exec grep -i -E '^ERROR:?\s+' "{}" \; >&2
 	exit 1
 fi
 
 # cleanup
-find "$WORK_DIR" -maxdepth 1 -type f -name \*.tif.err -delete
+find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT.err -delete
 
 # output redirection
 if [[ -n "$OUT_FILE" ]]	# https://stackoverflow.com/a/20564208
@@ -181,5 +111,5 @@ then
 fi
 
 # output
-find "$WORK_DIR" -maxdepth 1 -type f -name \*.tif.txt -print0 | sort -z | xargs -0 cat
+find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT.txt -print0 | sort -z | xargs -0 cat
 
