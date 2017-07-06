@@ -46,7 +46,7 @@ function _show_usage() {
 	Options:
 	  -f N     first page number (optional, default: 1)
 	  -l N     last page number (optional, default: last page of the document)
-	  -o DIR   output directory (mandatory)
+	  -o DIR   output directory (optional, default: .)
 	  -h       display this help and exit
 	  -v       output version information and exit
 	EOF
@@ -92,13 +92,7 @@ case $# in
 esac
 
 # working directory
-if [[ -z "$WORK_DIR" ]]
-then
-	echo "ERROR: Output directory is not specified" >&2
-	exit 1
-fi
-
-declare -r WORK_DIR=$(echo $WORK_DIR | sed 's:/*$::')	# remove all trailing slashes
+declare -r WORK_DIR=$(echo "${WORK_DIR:-.}" | sed 's:/*$::')	# remove all trailing slashes
 
 if [[ -z "$WORK_DIR" ]]
 then
