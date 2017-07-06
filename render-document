@@ -114,7 +114,7 @@ fi
 # render
 case "${INPUT_FILE##*.}" in
 	PDF|pdf)	# pdftoppm
-		pdftoppm -gray -aa no -aaVector no -thinlinemode solid -r $DPI -f $FIRST_PAGE -l $LAST_PAGE "$INPUT_FILE" "$WORK_DIR/$PREF" || exit 1
+		pdftoppm -gray -r $DPI -f $FIRST_PAGE -l $LAST_PAGE "$INPUT_FILE" "$WORK_DIR/$PREF" || exit 1
 		;;
 
 	djvu)	# ddjvu
