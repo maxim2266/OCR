@@ -33,9 +33,6 @@
 # version
 declare -r VERSION=0.5.0
 
-# constants
-declare -r EXT=pgm
-
 # helper functions
 function _show_usage() {
 	cat <<-EOF >&2
@@ -44,6 +41,7 @@ function _show_usage() {
 	Options:
 	  -L LANG  document language (optional, default: 'eng')
 	  -o FILE  output file name (optional, default: stdout)
+	  -e EXT   input files extension (optional, default: pgm)
 	  -h       display this help and exit
 	  -v       output version information and exit
 	EOF
@@ -59,11 +57,12 @@ then
 fi
 
 # options
-while getopts "L:o:vh" opt
+while getopts "L:o:e:vh" opt
 do
 	case $opt in
 		L)	OCR_LANG=$OPTARG ;;
 		o)	OUT_FILE="$OPTARG" ;;
+		e)	EXT="$OPTARG" ;;
 		v)	echo v$VERSION ; exit 1 ;;
 		h)	_show_usage ; exit 1 ;;
 		\?)	exit 1 ;;
@@ -71,6 +70,7 @@ do
 done
 
 shift $((OPTIND-1)) # remove parsed options and args from $@ list
+declare -r EXT=${EXT:-pgm}
 
 # input directory
 case $# in
