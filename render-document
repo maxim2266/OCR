@@ -39,7 +39,7 @@ declare -r PREF=page
 declare -r -i DPI=600
 
 # helper functions
-function _show_usage() {
+_show_usage() {
 	cat <<-EOF >&2
 	Usage: $0 [OPTION]... FILE
 	Renders .pdf or .djvu document FILE to grayscale images in .$EXT format.
@@ -52,7 +52,7 @@ function _show_usage() {
 	EOF
 }
 
-function _ddjvu_exit() {
+_ddjvu_exit() {
 	head -q -n 1 "$1" | sed 's/^ddjvu:[[:space:]]*\[[^]]*\]/ddjvu:/g' >&2
 	exit 1
 }
