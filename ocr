@@ -37,7 +37,7 @@ declare -r VERSION=0.5.0
 declare -r EXT=pgm
 
 # helper functions
-function _show_usage() {
+_show_usage() {
 	cat <<-EOF >&2
 	Usage: $0 [OPTION]... DIR
 	Extracts text from all image files in DIR.
