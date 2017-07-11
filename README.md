@@ -3,16 +3,15 @@ An ever growing collection of tools to perform [OCR](https://en.wikipedia.org/wi
 
 ### Motivation
 
-There is no good tool that could handle the entire
-process of character recognition end to end in one go, without various adjustments and parameter tuning
-in between different stages. Depending on the hardware, the OCR stage itself may take tens of minutes to process
-a large document (for example, a book of 500 pages), and so may take other image extraction/processing stages.
-Rerunning the whole process just to see if one parameter change can actually improve the end result is both time
-consuming and boring. The toolset is designed to support running OCR in separate, mostly independent steps
-so that each step can be rerun with a different set of parameters, and the steps can be invoked in
-a different order. All that may be unnecessary to recognise just a few pages, but for a book the automation becomes
-crucial as a few days spent on adjusting the input images or regular expressions for postprocessing
-can easily save weeks of manual correction of the text.
+Doing a good quality OCR in one go is hard. Usually the process includes a number of attempts to improve the original
+image quality in order to achieve reasonable recognition, followed by some manual correction of the output text.
+This is not a problem when digitising a receipt for tax return, but processing a book of 500 pages makes
+things a lot harder. Depending on the hardware, the OCR stage itself may take tens of minutes, and so may
+take other image extraction/processing stages. And manual text correction can take a week or more.
+The only solution seems to be splitting the process into a number of steps that can be run and rerun
+independently until a reasonable quality of the output is achieved. The toolset is aimed to support
+this incremental approach.
+
 
 ### OCR Process
 
@@ -20,11 +19,12 @@ In general, the process of converting a document to text includes the following 
 
 ``` image-extraction -> image-processing -> OCR -> text-postprocessing```
 
-This toolset targets processing of large documents and is designed to automate each step separately
-storing intermediate results in a directory. The separation is especially useful
-for image processing step where images get resized, cropped and optimised in a variety of ways, as well as for
-the text post-processing where a good number of regular expressions are applied to remove OCR artefacts and
-correct errors.
+The image extraction and OCR steps are relatively easy to automate, and this toolset provides two simple
+scripts to do just that. Image processing depends heavily on the input image quality and may include varying
+number of stages involving different tools, and it is yet to be seen what
+support can be provided for this step. Simple text post-processing can be done using the good old Unix `sed`
+command, at least for the English language, other languages usually require a more advanced regular expression
+engine with full Unicode support.
 
 ### Tools
 #### Image extractor (renderer)
@@ -61,13 +61,6 @@ A wrapper around `tesseract` tool.
 
 Tested on Linux Mint 18.1, will probably work on other Debian-based distributions.
 
-#### External tools
 
-Internally the toolset relies on `pdfimages` and `ddjvu` tools for extracting images,
-and on `tesseract` program for the actual OCR'ing. The tool `pdfimages` is usually a part of `poppler-utils`
-package, the tool `ddjvu` comes from `djvulibre-bin` package, and `tesseract` is included in `tesseract-ocr`
-package. By default, `tesseract` comes with the English language support only, other languages should
-be installed separately, for example, run `sudo apt install tesseract-ocr-rus` to install the Russian
-language support. To find out what languages are currently installed type `tesseract --list-langs`.
 
 
