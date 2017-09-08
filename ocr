@@ -40,23 +40,29 @@ _show_usage() {
 	Extracts text from all image files in DIR.
 	Options:
 	  -L LANG  document language (optional, default: 'eng')
-	  -o FILE  output file name (optional, default: stdout)
+	  -o FILE  output file name (optional, default output directed to stdout)
 	  -e EXT   input files extension (optional, default: pgm)
 	  -h       display this help and exit
 	  -v       output version information and exit
 	EOF
 }
 
-# check tesseract version
-declare -r TESS_VER=$(tesseract -v 2>&1 | head -q -n 1 | cut -s -d " " -f 2 )
-
-if [[ ${TESS_VER%%.[0-9]*} -lt 3 ]]	# major >= 3
-then
-	echo "ERROR: Current \"tesseract\" version $TESS_VER is not supported" >&2
+_die() {
+	echo "ERROR:" "$@" >&2
 	exit 1
-fi
+}
+
+# check tesseract version
+[[ -n $(which tesseract) ]] || _die "Program 'tesseract' is not installed"
+
+declare -r TESS_VER=$( tesseract -v 2>&1 | head -q -n 1 | cut -s -d " " -f 2 )
+
+# must have major >= 3
+[[ ${TESS_VER%%.[0-9]*} -ge 3 ]] || _die "'tesseract' version $TESS_VER is not supported"
 
 # options
+[[ $# -gt 0 ]] || { _show_usage ; exit 1 ; }
+
 while getopts "L:o:e:vh" opt
 do
 	case $opt in
@@ -75,12 +81,12 @@ declare -r EXT=${EXT:-pgm}
 # input directory
 case $# in
 	1)	declare -r INPUT_DIR=$(echo "$1" | sed 's:/*$::')	# remove all trailing slashes
-		[[ -d "$INPUT_DIR" ]] || { echo "ERROR: Input is not a directory, or it does not exist: \"$INPUT_DIR\"" >&2 ; exit 1 ; }
-		[[ -n $(find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT) ]] || { echo "ERROR: No files to process in \"$INPUT_DIR\"" >&2 ; exit 1 ; }
+		[[ -d "$INPUT_DIR" ]] || _die "Input is not a directory, or it does not exist: \"$INPUT_DIR\""
+		[[ -n $(find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT) ]] || _die "No files to process in \"$INPUT_DIR\""
 		;;
 	0)	declare -r INPUT_DIR=.
 		;;
-	*)	echo "ERROR: Cannot process more than one input directory: $@" >&2 ; exit 1
+	*)	_die "Cannot process more than one input directory: $@"
 		;;
 esac
 

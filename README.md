@@ -49,7 +49,8 @@ Usage: ocr [OPTION]... DIR
 Extracts text from all image files in DIR.
 Options:
   -L LANG  document language (optional, default: 'eng')
-  -o FILE  output file name (optional, default: stdout)
+  -o FILE  output file name (optional, default output directed to stdout)
+  -e EXT   input files extension (optional, default: pgm)
   -h       display this help and exit
   -v       output version information and exit
 ```
