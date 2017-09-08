@@ -57,6 +57,10 @@ _ddjvu_exit() {
 	exit 1
 }
 
+_check_prog() {
+	[[ -n $(which "$1") ]] || { echo "ERROR: Program '$1' is not installed" >&2 ; exit 1 ; }
+}
+
 # options
 while getopts "f:l:o:vh" opt
 do
@@ -108,10 +112,12 @@ fi
 # render
 case "${INPUT_FILE##*.}" in
 	PDF|pdf)	# pdftoppm
+		_check_prog pdftoppm
 		pdftoppm -gray -r $DPI -f $FIRST_PAGE -l $LAST_PAGE "$INPUT_FILE" "$WORK_DIR/$PREF" || exit 1
 		;;
 
 	djvu)	# ddjvu
+		_check_prog ddjvu
 		ddjvu -format=$EXT -mode=black -scale=$DPI -eachpage -page=$FIRST_PAGE-$LAST_PAGE "$INPUT_FILE" "$WORK_DIR/$PREF-%04d.$EXT" 2>"$WORK_DIR/ddjvu-error" \
 		|| _ddjvu_exit "$WORK_DIR/ddjvu-error"
 
