@@ -56,7 +56,7 @@ b=$(read_param "bottom" "$4")
 [ $((t + b)) -lt $h -a $((l + r)) -lt $w ] || exec echo "1x1-10-10"	# empty image with warning from `convert`
 
 # finally, compose the string
-exec echo "$(($w - $l - $r))x$(($h - $t - $b))+$l+$t"
+echo "$(($w - $l - $r))x$(($h - $t - $b))+$l+$t"
 
 # Example command:
 #	convert input_file +repage -crop "$(crop-geometry 10 10 10 10 input-file)" +repage $output_file

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+usage() {
+	cat >&2 <<EOF
+Crop image to content, and then add white border 5% thick.
+
+Usage:
+	$(basename "$0") input-file output-file
+EOF
+	exit 1
+}
+
+# check parameters
+[ $# -eq 2 ] || usage
+
+# normalise
+exec convert "$1" -fuzz 2% -trim -bordercolor white -border 5%x5% +repage "$2"
+exit	# just in case
