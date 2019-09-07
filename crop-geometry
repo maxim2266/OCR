@@ -75,10 +75,11 @@ read_param() {
 	esac
 }
 
-L=$(read_param "left" "$1")
-R=$(read_param "right" "$2")
-T=$(read_param "top" "$3")
-B=$(read_param "bottom" "$4")
+declare -r -i	\
+	L=$(read_param "left" "$1")		\
+	R=$(read_param "right" "$2")	\
+	T=$(read_param "top" "$3")		\
+	B=$(read_param "bottom" "$4")
 
 # check for empty image
 [ $((T + B)) -lt $H -a $((L + R)) -lt $W ] || exec echo "1x1-10-10"	# empty image with warning from `convert`
