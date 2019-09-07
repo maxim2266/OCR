@@ -43,14 +43,13 @@ usage() {
 Compose crop geometry string for "convert -crop"
 
 Usage:
-	$(basename "$0") left% right% top% bottom% input-file-name
+	$(basename "$0") left right top bottom input-file-name
 where
 	"left", "right", "top", and "bottom" (in this order) are percentages
 	of the image to crop from the respective sides of the image. The range of
 	values is from 0 to 99.99%, with up to 2 digits after the decimal point.
-	Percent symbol '%' is optional.
 Example:
-	$(basename "$0") 19.33 2 3 40% input.pgm
+	$(basename "$0") 19.33 2 3 40 input.pgm
 EOF
 	exit 1
 }
@@ -63,7 +62,7 @@ read -r W H < <(identify -format "%w %h\n" "$5")
 
 # read crop values
 read_param() {
-	local -r VALID='^[0-9]{1,2}(\.[0-9]{,2})?%?$'	# values from 0 to 99.99%
+	local -r VALID='^[0-9]{1,2}(\.[0-9]{,2})?$'	# values from 0 to 99.99%
 
 	[[ "$2" =~ $VALID ]] || die "Invalid value for \"$1\": $2"
 
@@ -88,5 +87,5 @@ declare -r -i	\
 echo "$((W - L - R))x$((H - T - B))+$L+$T"
 
 # Example command:
-#	convert input_file +repage -crop "$(crop-geometry 10 10 10 10 input-file)" +repage $output_file
+#	convert input_file +repage -crop "$(crop-geometry 10 10 10 10 input-file)" +repage output_file
 

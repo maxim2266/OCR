@@ -57,10 +57,38 @@ Options:
 
 A wrapper around `tesseract` tool.
 
+#### Image geometry calculator for cropping
+```
+▶ ./crop-geometry
+Compose crop geometry string for "convert -crop"
+
+Usage:
+	crop-geometry left right top bottom input-file-name
+where
+	"left", "right", "top", and "bottom" (in this order) are percentages
+	of the image to crop from the respective sides of the image. The range of
+	values is from 0 to 99.99%, with up to 2 digits after the decimal point.
+Example:
+	crop-geometry 19.33 2 3 40 input.pgm
+```
+
+The tool writes the composed geometry string to `stdout`. Can be used like:
+```
+convert input_file -crop "$(crop-geometry 10 10 10 10 input-file)" output_file
+```
+
+#### Image normaliser
+```
+▶ ./norm-image
+Crop image to content, and then add white border 5% thick.
+
+Usage:
+	norm-image input-file output-file
+```
 
 ##### Platform: Linux
 
-Tested on Linux Mint 18.1, will probably work on other Debian-based distributions.
+Tested on Linux Mint 19.2, will probably work on other Debian-based distributions as well.
 
 
 

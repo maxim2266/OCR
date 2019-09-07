@@ -44,5 +44,4 @@ EOF
 [ $# -eq 2 ] || usage
 
 # normalise
-exec convert "$1" -fuzz 2% -trim -bordercolor white -border 5%x5% +repage "$2"
-exit	# just in case
+exec convert "$1" -fuzz 2% -trim -bordercolor white -border '5%x5%' +repage "$2"
