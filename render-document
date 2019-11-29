@@ -92,7 +92,7 @@ case $# in
 		[[ -f "$INPUT_FILE" ]] || { echo "ERROR: File not found: $INPUT_FILE" >&2 ; exit 1 ; } ;;
 
 	0)	printf "ERROR: Input file is not specified\n\n" >&2 ; _show_usage ; exit 1 ;;
-	*)	echo "ERROR: Cannot process more than one input file: $@" >&2 ; exit 1 ;;
+	*)	echo "ERROR: Cannot process more than one input file:" "$@" >&2 ; exit 1 ;;
 esac
 
 # working directory

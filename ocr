@@ -86,7 +86,7 @@ case $# in
 		;;
 	0)	declare -r INPUT_DIR=.
 		;;
-	*)	_die "Cannot process more than one input directory: $@"
+	*)	_die "Cannot process more than one input directory:" "$@"
 		;;
 esac
 
