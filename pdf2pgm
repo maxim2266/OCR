@@ -74,7 +74,7 @@ ensure_int_arg() {
 
 # ensure correct filesystem type
 ensure_fs_type() {
-	T="$(stat -c %F "$2" 2>&1)"
+	T="$(stat -L -c %F "$2" 2>&1)"
 
 	(( $? == 0 )) || die_ "$T"
 	[[ "$1" == "$T" ]] || die "\"$2\" is a $T, not a $1"
@@ -116,7 +116,7 @@ case $# in
 esac
 
 # check input file availability and MIME type
-FILE_TYPE="$(file -E --brief --mime-type "$INPUT_FILE")"
+FILE_TYPE="$(file -ELb --mime-type "$INPUT_FILE")"
 
 (( $? == 0 )) || die_ "$FILE_TYPE" # because 'file' prints errors to stdout
 [[ "$FILE_TYPE" == "application/pdf" ]] || die "invalid input file MIME type: $FILE_TYPE"
