@@ -58,13 +58,13 @@ usage_and_exit() {
 
 # error exit
 die() {
-	echo >&2 "$0:" "$@"
+	echo >&2 "$0: $*"
 	exit 1
 }
 
 # error exit with message prefix cut off
 die_() {
-	die "$(cut -d ' ' -f 2- <<< "$@")"
+	die "$(cut -d ' ' -f 2- <<< "$*")"
 }
 
 # ensure integer argument
@@ -104,14 +104,14 @@ done
 (( FIRST_PAGE <= LAST_PAGE )) || die "invalid range of pages: $FIRST_PAGE..$LAST_PAGE"
 
 # input file
-shift $((OPTIND-1)) # remove parsed options and args from $@ list
+shift $(( OPTIND - 1 )) # remove parsed options and args from $@ list
 
 case $# in
 	1)	INPUT_FILE="$1"
 		;;
 	0)	die "input file is not specified"
 		;;
-	*)	die "cannot process more than one input file"
+	*)	die "cannot process multiple input file"
 		;;
 esac
 
