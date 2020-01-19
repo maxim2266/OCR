@@ -2,7 +2,7 @@
 
 # BSD 3-Clause License
 
-# Copyright (c) 2017,2018,2019, Maxim Konakov
+# Copyright (c) 2017,2018,2019,2020, Maxim Konakov
 # All rights reserved.
 
 # Redistribution and use in source and binary forms, with or without
@@ -30,109 +30,104 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# version
-declare -r VERSION=0.5.0
 
-# constants
-declare -r EXT=pgm
-declare -r PREF=page
-declare -r -i DPI=600
+# The script converts each page from the input .pdf or .djvu file to a grayscale
+# PGM image with 600 dpi resolution.
 
-# helper functions
-_show_usage() {
+# defaults
+FIRST_PAGE=1
+LAST_PAGE=9999
+WORK_DIR=.
+
+# display usage string and exit
+usage_and_exit() {
 	cat <<-EOF >&2
-	Usage: $0 [OPTION]... FILE
-	Renders .pdf or .djvu document FILE to grayscale images in .$EXT format.
+	Usage: $(basename "$0") [OPTION]... FILE
+	Renders pages of a .pdf or .djvu document FILE to grayscale images in PGM format.
 	Options:
 	  -f N     first page number (optional, default: 1)
 	  -l N     last page number (optional, default: last page of the document)
 	  -o DIR   output directory (optional, default: .)
 	  -h       display this help and exit
-	  -v       output version information and exit
 	EOF
-}
 
-_ddjvu_exit() {
-	head -q -n 1 "$1" | sed 's/^ddjvu:[[:space:]]*\[[^]]*\]/ddjvu:/g' >&2
 	exit 1
 }
 
-_check_prog() {
-	[[ -n $(which "$1") ]] || { echo "ERROR: Program '$1' is not installed" >&2 ; exit 1 ; }
+# error exit
+die() {
+	echo >&2 "$0: $*"
+	exit 1
+}
+
+# error exit with message prefix cut off
+die_() {
+	die "$(cut -d ' ' -f 2- <<< "$*")"
+}
+
+# ensure integer argument
+ensure_int_arg() {
+	[[ "$2" =~ ^[1-9][0-9]*$ ]] || die "invalid parameter \"$2\" for option -$1"
+}
+
+# ensure correct filesystem type
+ensure_fs_type() {
+	T="$(stat -L -c %F "$2" 2>&1)"
+
+	(( $? == 0 )) || die_ "$T"
+	[[ "$1" == "$T" ]] || die "\"$2\" is a $T, not a $1"
 }
 
 # options
-while getopts "f:l:o:vh" opt
+(( $# > 0 )) || usage_and_exit
+
+while getopts "f:l:o:h" OPT
 do
-	case $opt in
-		f)	case $OPTARG in
-				''|*[!0-9]*)	echo "Invalid parameter for -$opt option: $OPTARG" >&2 ; exit 1 ;;
-				*)				FIRST_PAGE=$OPTARG ;;
-			esac ;;
-		l)	case $OPTARG in
-				''|*[!0-9]*)	echo "Invalid parameter for -$opt option: $OPTARG" >&2 ; exit 1 ;;
-				*)				LAST_PAGE=$OPTARG ;;
-			esac ;;
-		o)	WORK_DIR=$OPTARG ;;
-		v)	echo v$VERSION ; exit 1 ;;
-		h)	_show_usage ; exit 1 ;;
-		\?)	exit 1 ;;
+	case $OPT in
+		f)	ensure_int_arg "$OPT" "$OPTARG"
+			FIRST_PAGE="$OPTARG"
+			;;
+		l)	ensure_int_arg "$OPT" "$OPTARG"
+			LAST_PAGE="$OPTARG"
+			;;
+		o)	ensure_fs_type "directory" "$OPTARG"
+			WORK_DIR="$OPTARG"
+			;;
+		h)	usage_and_exit
+			;;
+		\?)	exit 1
+			;;
 	esac
 done
 
-shift $((OPTIND-1)) # remove parsed options and args from $@ list
-
-# pages
-declare -r -i FIRST_PAGE=${FIRST_PAGE:-1}
-declare -r -i LAST_PAGE=${LAST_PAGE:-5000}
+# check range of pages
+(( FIRST_PAGE <= LAST_PAGE )) || die "invalid range of pages: $FIRST_PAGE..$LAST_PAGE"
 
 # input file
+shift $(( OPTIND - 1 )) # remove parsed options and args from $@ list
+
 case $# in
-	1)	declare -r INPUT_FILE=$1
-		[[ -f "$INPUT_FILE" ]] || { echo "ERROR: File not found: $INPUT_FILE" >&2 ; exit 1 ; } ;;
-
-	0)	printf "ERROR: Input file is not specified\n\n" >&2 ; _show_usage ; exit 1 ;;
-	*)	echo "ERROR: Cannot process more than one input file:" "$@" >&2 ; exit 1 ;;
-esac
-
-# working directory
-declare -r WORK_DIR=$(echo "${WORK_DIR:-.}" | sed 's:/*$::')	# remove all trailing slashes
-
-if [[ -z "$WORK_DIR" ]]
-then
-	echo "ERROR: Invalid name for working directory" >&2
-	exit 1
-elif [[ ! -d "$WORK_DIR" ]]	# create if does not exists
-then
-	mkdir "$WORK_DIR" || exit 1
-else	# clear if not empty
-	find "$WORK_DIR" -maxdepth 1 -type f \( -name \*.$EXT -o -name ddjvu-error \) -delete
-fi
-
-# render
-case "${INPUT_FILE##*.}" in
-	PDF|pdf)	# pdftoppm
-		_check_prog pdftoppm
-		pdftoppm -gray -r $DPI -f $FIRST_PAGE -l $LAST_PAGE "$INPUT_FILE" "$WORK_DIR/$PREF" || exit 1
+	1)	INPUT_FILE="$1"
 		;;
-
-	djvu)	# ddjvu
-		_check_prog ddjvu
-		ddjvu -format=$EXT -mode=black -scale=$DPI -eachpage -page=$FIRST_PAGE-$LAST_PAGE "$INPUT_FILE" "$WORK_DIR/$PREF-%04d.$EXT" 2>"$WORK_DIR/ddjvu-error" \
-		|| _ddjvu_exit "$WORK_DIR/ddjvu-error"
-
-		rm "$WORK_DIR/ddjvu-error"
+	0)	die "input file is not specified"
 		;;
-
-	*)	# error
-		echo "ERROR: Unsupported file type: $INPUT_FILE" >&2 ; exit 1
+	*)	die "cannot process multiple input file"
 		;;
 esac
 
-# check if anything has been produced
-if [[ -z $(find "$WORK_DIR" -maxdepth 1 -type f -name \*.$EXT) ]]
-then
-	echo "ERROR: No pages rendered, something must have gone wrong" >&2
-	exit 1
-fi
+# check input file availability and MIME type
+FILE_TYPE="$(file -ELb --mime-type "$INPUT_FILE")"
 
+(( $? == 0 )) || die_ "$FILE_TYPE" # because 'file' prints errors to stdout
+
+# finally, do the conversion
+case "$FILE_TYPE" in
+	'application/pdf')
+		exec pdftoppm -gray -r 600 -f "$FIRST_PAGE" -l "$LAST_PAGE" "$INPUT_FILE" "$WORK_DIR/page"
+		;;
+	'image/vnd.djvu')
+		exec ddjvu -format=pgm -mode=black -scale=600 -eachpage -page="$FIRST_PAGE-$LAST_PAGE" "$INPUT_FILE" "$WORK_DIR/page-%04d.pgm"
+		;;
+	*)	die "invalid input file MIME type: $FILE_TYPE"
+		;;
+esac
