@@ -2,7 +2,7 @@
 
 # BSD 3-Clause License
 
-# Copyright (c) 2017,2018,2019, Maxim Konakov
+# Copyright (c) 2017,2018,2019,2020, Maxim Konakov
 # All rights reserved.
 
 # Redistribution and use in source and binary forms, with or without
@@ -30,92 +30,33 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# version
-declare -r VERSION=0.5.0
+set -o pipefail
 
-# helper functions
-_show_usage() {
-	cat <<-EOF >&2
-	Usage: $0 [OPTION]... DIR
-	Extracts text from all image files in DIR.
-	Options:
-	  -L LANG  document language (optional, default: 'eng')
-	  -o FILE  output file name (optional, default output directed to stdout)
-	  -e EXT   input files extension (optional, default: pgm)
-	  -h       display this help and exit
-	  -v       output version information and exit
-	EOF
-}
-
-_die() {
-	echo "ERROR:" "$@" >&2
+# error exit
+die() {
+	echo >&2 "$0: $*"
 	exit 1
 }
 
-# check tesseract version
-[[ -n $(which tesseract) ]] || _die "Program 'tesseract' is not installed"
+# display usage string and exit
+exit_with_usage() {
+	cat <<-EOF >&2
+	Usage:	$(basename "$0") DIR [OPTION]...
+	  Run OCR on all .pgm files in the given directory DIR.
+	  Recognised text is written to STDOUT. All the given
+	  options are passed down to the "tesseract" tool.
+	EOF
 
-declare -r TESS_VER=$( tesseract -v 2>&1 | head -q -n 1 | cut -s -d " " -f 2 )
+	exit 1
+}
 
-# must have major >= 3
-[[ ${TESS_VER%%.[0-9]*} -ge 3 ]] || _die "'tesseract' version $TESS_VER is not supported"
+# parameter check
+(( $# > 0 )) || exit_with_usage
 
-# options
-[[ $# -gt 0 ]] || { _show_usage ; exit 1 ; }
-
-while getopts "L:o:e:vh" opt
-do
-	case $opt in
-		L)	OCR_LANG=$OPTARG ;;
-		o)	OUT_FILE="$OPTARG" ;;
-		e)	EXT="$OPTARG" ;;
-		v)	echo v$VERSION ; exit 1 ;;
-		h)	_show_usage ; exit 1 ;;
-		\?)	exit 1 ;;
-	esac
-done
-
-shift $((OPTIND-1)) # remove parsed options and args from $@ list
-declare -r EXT=${EXT:-pgm}
-
-# input directory
-case $# in
-	1)	declare -r INPUT_DIR=$(echo "$1" | sed 's:/*$::')	# remove all trailing slashes
-		[[ -d "$INPUT_DIR" ]] || _die "Input is not a directory, or it does not exist: \"$INPUT_DIR\""
-		[[ -n $(find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT) ]] || _die "No files to process in \"$INPUT_DIR\""
-		;;
-	0)	declare -r INPUT_DIR=.
-		;;
-	*)	_die "Cannot process more than one input directory:" "$@"
-		;;
-esac
-
-# language
-declare -r OCR_LANG=${OCR_LANG:-eng}
-
-# cleanup input directory
-find "$INPUT_DIR" -maxdepth 1 -type f \( -name \*.$EXT.err -o -name \*.$EXT.txt \) -delete
+DIR="$1"
+shift
 
 # OCR
-find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT -print0 | xargs -0 -n 1 -P $(nproc) -I % \
-	sh -c "tesseract \"%\" \"%\" -l $OCR_LANG 2>\"%.err\" || exit 255"
-
-if [[ $? -ne 0 ]]
-then
-	find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT.err -exec grep -i -E '^ERROR:?\s+' "{}" \; >&2
-	exit 1
-fi
-
-# cleanup
-find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT.err -delete
-
-# output redirection
-if [[ -n "$OUT_FILE" ]]	# https://stackoverflow.com/a/20564208
-then
-	exec 1<&-
-	exec 1>"$OUT_FILE" || exit 1
-fi
-
-# output
-find "$INPUT_DIR" -maxdepth 1 -type f -name \*.$EXT.txt -print0 | sort -z | xargs -0 cat
-
+find "$DIR" -maxdepth 1 -name '*.pgm' -print0	\
+| sort -z	\
+| xargs -0 -n 1 -I '{}' "$(dirname "$0")/extract-text" '{}' "$@"
