@@ -48,9 +48,8 @@ Usage:	extract-text FILE [OPTION]...
   All the given options are passed down to the "tesseract" tool.
 ```
 
-Essentially, this is a wrapper around `tesseract` tool. The main purpose of the script
-is to validate command line parameters before passing them down to `tesseract`, because
-the original `tesseract` error messages are rather cryptic.
+The main purpose of the script is to validate command line parameters before passing
+them down to `tesseract`, because error messages from `tesseract` are rather cryptic.
 
 #### OCR
 ```
@@ -61,25 +60,19 @@ Usage:	ocr DIR [OPTION]...
   options are passed down to the "tesseract" tool.
 ```
 
-#### Image geometry calculator for cropping
+#### Image cropping
 ```
-▶ ./crop-geometry
-Compose crop geometry string for "convert -crop"
+▶ ./crop-image
+Usage: crop-image [OPTIONS]... FILE
 
-Usage:
-	crop-geometry left right top bottom input-file-name
-where
-	"left", "right", "top", and "bottom" (in this order) are percentages
-	of the image to crop from the respective sides of the image. The range of
-	values is from 0 to 99.99%, with up to 2 digits after the decimal point.
-Example:
-	crop-geometry 19.33 2 3 40 input.pgm
+Crop the borders of the image FILE.
+Options:
+  -{l,r,t,b} N  crop N% of the image from the specified edge; l,r,t,b stand for
+                "left", "right", "top", and "bottom" respectively; valid range
+                of values is from 0% to 99.99%
+  -o FILE       write output to the FILE (optional, default: STDOUT)
 ```
-
-The tool writes the composed geometry string to `stdout`. Can be used like:
-```
-convert input_file -crop "$(crop-geometry 10 10 10 10 input-file)" output_file
-```
+This crops image with `pamcut`, with crop values given in percents, not in pixels.
 
 #### Image normaliser
 ```
@@ -87,7 +80,7 @@ convert input_file -crop "$(crop-geometry 10 10 10 10 input-file)" output_file
 Crop image to content, and then add white border 5% thick.
 
 Usage:
-	norm-image input-file output-file
+	norm-image INPUT-FILE OUTPUT-FILE
 ```
 
 ##### Platform: Linux

@@ -109,7 +109,7 @@ case $# in
 		;;
 	0)	die "input file is not specified"
 		;;
-	*)	die "cannot process multiple input file"
+	*)	die "cannot process multiple input files"
 		;;
 esac
 
