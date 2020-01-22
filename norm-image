@@ -2,7 +2,7 @@
 
 # BSD 3-Clause License
 
-# Copyright (c) 2017,2018,2019, Maxim Konakov
+# Copyright (c) 2017,2018,2019,2020 Maxim Konakov
 # All rights reserved.
 
 # Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,8 @@
 
 usage() {
 	cat >&2 <<EOF
+Usage:	$(basename "$0") INPUT-FILE OUTPUT-FILE
 Crop image to content, and then add white border 5% thick.
-
-Usage:
-	$(basename "$0") INPUT-FILE OUTPUT-FILE
 EOF
 	exit 1
 }
@@ -44,4 +42,4 @@ EOF
 [ $# -eq 2 ] || usage
 
 # normalise
-exec convert "$1" -fuzz 2% -trim -bordercolor white -border '5%x5%' +repage "$2"
+exec convert "$1" -fuzz '2%' -trim -bordercolor white -border '5%x5%' +repage "$2"

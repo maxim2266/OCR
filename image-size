@@ -54,14 +54,5 @@ die() {
 (( $# == 1 )) || exit_with_usage
 [[ -n "$1" ]] || die "input file name is an empty string"
 
-# error capture
-ERR="$(mktemp --tmpdir)" || exit 1
-# shellcheck disable=SC2064
-trap "rm -f $ERR" EXIT
-
-die_err() {
-	die "$(head -n 1 "$ERR" | cut -d ' ' -f 2-)"
-}
-
 # get the dimensions
-pamfile "$1" 2>"$ERR" | sed -E 's/^.+\<([0-9]+)\s+by\s+([0-9]+).*$/\1 \2/' || die_err
+pamfile "$1" | sed -nE 's/^.+\<([0-9]+)\s+by\s+([0-9]+).*$/\1 \2/p'
