@@ -37,8 +37,7 @@ Options:
   -h       display this help and exit
 ```
 
-The output is a set of grey-scale images, one per page, each with 600dpi resolution. The input document
-does not have to be made of images, any valid document can be rendered by this tool.
+The output is a set of grey-scale images in `.pgm` format, one per page.
 
 #### OCR on a single image
 ```
