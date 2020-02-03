@@ -13,6 +13,7 @@
 
 #include <magic.h>
 
+// usage string
 static
 const char usage_string[] =
 "Usage:\t" PROG_NAME " [OPTION]... FILE\n"
@@ -29,25 +30,18 @@ const char usage_string[] =
 "  -h,--help         Show help and exit.\n"
 "  -v,--version      Show version and exit.\n";
 
-static __attribute__((noreturn))
-void show_usage_and_exit(void)
-{
-	fputs(usage_string, stderr);
-	exit(1);
-}
-
 // tty flag
 static
-int __is_tty = 0;
+int _is_tty = 0;
 
 static __attribute__((constructor(50000)))
-void __check_tty(void)
+void _check_tty(void)
 {
-	__is_tty = isatty(fileno(stdout));
+	_is_tty = isatty(STDOUT_FILENO);
 }
 
 #define info(fmt, ...)	\
-	if(__is_tty)	\
+	if(_is_tty)	\
 		printf("%s: " fmt "\n", program_invocation_name, ##__VA_ARGS__)
 
 // directory check
@@ -57,16 +51,18 @@ const char* check_dir(const char* dir)
 	struct stat info;
 
 	if(lstat(dir, &info))
-		die_errno("cannot stat \"%s\"", dir);
+		die(errno, "cannot stat \"%s\"", dir);
 
 	if(!S_ISDIR(info.st_mode))
-		die("\"%s\" is not a directory", dir);
+		die(0, "\"%s\" is not a directory", dir);
 
 	if((info.st_mode & S_IWUSR) == 0)
-		die("cannot write to \"%s\": permission denied (0%03o)", dir, (unsigned)info.st_mode & 0777);
+		die(0, "cannot write to \"%s\": permission denied (0%03o)", dir, (unsigned)info.st_mode & 0777);
 
 	return dir;
 }
+
+#define format(dest, fmt, ...)	libc_int(asprintf((dest), fmt, ##__VA_ARGS__), "asprintf")
 
 // command line parameters
 typedef struct
@@ -101,28 +97,28 @@ void parse_options(command* const cmd, int argc, char** argv)
 		switch(opt)
 		{
 			case 'h':
-				show_usage_and_exit();
+				show_usage_and_exit(usage_string);
 				break;
 			case 'v':
 				show_version_and_exit();
 				break;
 			case 'p':
 				if(cmd->spec)
-					die("duplicated option: -p, --pages");
+					die(0, "duplicated option: -p, --pages");
 
 				if(!(cmd->spec = parse_page_spec(optarg)))
-					die("empty page spec");
+					die(0, "empty page spec");
 				break;
 			case 'd':
 				if(cmd->dir)
-					die("duplicated option: -d, --dir");
+					die(0, "duplicated option: -d, --dir");
 
 				cmd->dir = check_dir(optarg);
 				break;
 			case '?':
 				exit(1);
 			default:
-				die("internal error (getopt_long(3) returned %d)", opt);
+				die(0, "internal error (getopt_long(3) returned %d)", opt);
 		}
 	}
 
@@ -134,13 +130,13 @@ void parse_options(command* const cmd, int argc, char** argv)
 	switch(argc - optind)
 	{
 		case 0:
-			die("input file is not specified");
+			die(0, "input file is not specified");
 			break;
 		case 1:
 			cmd->file = argv[optind];
 			break;
 		default:
-			die("cannot process more than one input file");
+			die(0, "cannot process more than one input file");
 			break;
 	}
 }
@@ -160,7 +156,7 @@ const char* mime_type(const char* const fname)
 							| MAGIC_NO_CHECK_TOKENS);
 
 	if(!mg)
-		die_errno("error opening libmagic");
+		die(errno, "error opening libmagic");
 
 	if(magic_load(mg, NULL) != 0)
 	{
@@ -197,8 +193,7 @@ void ddjvu(const command* const cmd)
 	// format for page names
 	char* fmt = NULL;
 
-	if(asprintf(&fmt, "%s/page-%%04d.pgm", cmd->dir) < 0)
-		die("internal error (asprintf)");
+	format(&fmt, "%s/page-%%04d.pgm", cmd->dir);
 
 	info("processing file \"%s\"", cmd->file);
 
@@ -213,8 +208,7 @@ void ddjvu(const command* const cmd)
 	{
 		char* spec;
 
-		if(asprintf(&spec, "-page=%s", page_spec_to_string(cmd->spec, NULL)) < 0)
-			die("internal error (asprintf)");
+		libc_int(asprintf(&spec, "-page=%s", page_spec_to_string(cmd->spec, NULL)), "asprintf");
 
 		info("extracting pages %s", spec + sizeof("-page"));
 
@@ -222,7 +216,7 @@ void ddjvu(const command* const cmd)
 	}
 
 	// exec() has failed
-	die_errno("failed to start \"ddjvu\" tool");
+	die(errno, "failed to start \"ddjvu\" tool");
 }
 
 // get the number of pages in a pdf file, because pdftoppm gives an error
@@ -235,8 +229,7 @@ unsigned pdf_num_pages(const char* const fname)
 	// prepare script
 	char* script = NULL;
 
-	if(asprintf(&script, fmt, fname) < 0)
-		die("internal error (asprintf)");
+	format(&script, fmt, fname);
 
 	// invoke the script
 	FILE* const stream = popen(script, "re");
@@ -245,8 +238,8 @@ unsigned pdf_num_pages(const char* const fname)
 
 	if(!stream)
 		// man popen(3): The popen() function does not set errno if memory allocation fails.
-		die_code((errno == 0) ? ENOMEM : errno,
-				 "error reading the number of pages in file \"%s\"", fname);
+		die((errno == 0) ? ENOMEM : errno,
+			"error reading the number of pages in file \"%s\"", fname);
 
 	// read script's output
 	char* line = NULL;
@@ -305,10 +298,10 @@ unsigned pdf_num_pages(const char* const fname)
 	const int ret = pclose(stream);
 
 	if(ret)
-		die("error reading the number of pages in file \"%s\" (return code %d)", fname, ret);
+		die(0, "error reading the number of pages in file \"%s\" (return code %d)", fname, ret);
 
 	if(num_pages < 0)
-		die("error reading the number of pages in file \"%s\" (number not found)", fname);
+		die(0, "error reading the number of pages in file \"%s\" (number not found)", fname);
 
 	return (unsigned)num_pages;
 }
@@ -351,8 +344,7 @@ const char* pdftoppm_script(const char* const fname,
 
 	char* script = NULL;
 
-	if(asprintf(&script, script_fmt, range_str, fname, dir) < 0)
-		die("internal error (asprintf)");
+	format(&script, script_fmt, range_str, fname, dir);
 
 	return script;
 }
@@ -363,8 +355,7 @@ void pdftoppm(const command* const cmd)
 	// format
 	char* fmt = NULL;
 
-	if(asprintf(&fmt, "%s/page", cmd->dir) < 0)
-		die("internal error (asprintf)");
+	format(&fmt, "%s/page", cmd->dir);
 
 	info("processing file \"%s\"", cmd->file);
 
@@ -405,7 +396,7 @@ void pdftoppm(const command* const cmd)
 int main(int argc, char** argv)
 {
 	if(argc == 1)
-		show_usage_and_exit();
+		show_usage_and_exit(usage_string);
 
 	command cmd;
 
@@ -418,7 +409,7 @@ int main(int argc, char** argv)
 	else if (strcmp(mime, "application/pdf") == 0)
 		pdftoppm(&cmd);
 	else
-		die("cannot process file \"%s\" of type \"%s\"", cmd.file, mime);
+		die(0, "cannot process file \"%s\" of type \"%s\"", cmd.file, mime);
 
 	// must never get here
 	abort();

@@ -5,9 +5,8 @@
 #include <errno.h>
 
 // error termination
-#define die_code(code, msg, ...) 	error(1, (code), "" msg, ##__VA_ARGS__)
-#define die_errno(msg, ...) 		die_code(errno, msg, ##__VA_ARGS__)
-#define die(msg, ...) 				die_code(0, msg, ##__VA_ARGS__)
+#define die(code, msg, ...) 	error(1, (code), "" msg, ##__VA_ARGS__)
+#define _die(code, msg, ...)	do { error(0, (code), "" msg, ##__VA_ARGS__); _exit(1); } while(0)
 
 // unused parameter
 #define UNUSED(x) UNUSED_ ## x __attribute__((unused))
@@ -22,6 +21,11 @@ void mem_free(const void* const p)
 	if(p)
 		free((void*)p);
 }
+
+// error checks
+int libc_int(const int ret, const char* const func_name);
+void* libc_ptr(void* const ptr, const char* const func_name);
+int _libc_int(const int ret, const char* const func_name);
 
 // min/max functions
 // see https://gcc.gnu.org/onlinedocs/gcc/Typeof.html
@@ -41,3 +45,6 @@ void mem_free(const void* const p)
 
 // program version display
 void show_version_and_exit(void) __attribute__((noreturn));
+
+// program usage display
+void show_usage_and_exit(const char* const usage_string) __attribute__((noreturn));

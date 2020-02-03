@@ -24,3 +24,4 @@ page_spec* parse_page_spec(const char* s);
 #define free_page_spec(spec)	mem_free((void*)(spec))
 
 char* page_spec_to_string(const page_spec* const spec, size_t* const plen);
+const page_range* find_page_range(const page_spec* const spec, const unsigned page_no);

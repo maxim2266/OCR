@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 static
 page_spec* add_page_range(page_spec* spec, const page_range range)
@@ -32,11 +33,10 @@ page_spec* add_page_range(page_spec* spec, const page_range range)
 	return spec;
 }
 
-static __attribute__((noinline,noreturn))
+static
 void die_bad_spec(const char* const s)
 {
-	die("invalid page spec, problematic part: \"%s\"", s);
-	exit(1);	// unreachable, but makes it "noreturn"
+	die(0, "invalid page spec, problematic part: \"%s\"", s);
 }
 
 static
@@ -76,6 +76,8 @@ const char* read_page_no(const char* s, unsigned* const p)
 		default:
 			die_bad_spec(s);
 	}
+
+	abort(); // unreachable
 }
 
 static
@@ -105,7 +107,7 @@ page_spec* parse_spec(const char* s)
 
 		// add spec
 		if(range.first > range.last)
-			die("invalid page range: %u-%u", range.first, range.last);
+			die(0, "invalid page range: %u-%u", range.first, range.last);
 
 		spec = add_page_range(spec, range);
 
@@ -165,21 +167,16 @@ char* page_spec_to_string(const page_spec* const spec, size_t* const plen)
 	if(spec && spec->len > 0)
 	{
 		// memory stream
-		FILE* const ms = open_memstream(&str, &n);
-
-		if(!ms)
-			die_errno("internal error");
+		FILE* const ms = libc_ptr(open_memstream(&str, &n), "open_memstream");
 
 		// iterate the spec ranges
 		const page_range* p = spec->ranges;
 		const page_range* const end = p + spec->len;
 
-		if(fprintf(ms, "%u-%u", p->first, p->last) < 0)
-			die_errno("internal error");
+		libc_int(fprintf(ms, "%u-%u", p->first, p->last), "fprintf");
 
 		for(++p; p < end; ++p)
-			if(fprintf(ms, ",%u-%u", p->first, p->last) < 0)
-				die_errno("internal error");
+			libc_int(fprintf(ms, ",%u-%u", p->first, p->last), "fprintf");
 
 		fclose(ms);
 	}
@@ -188,6 +185,28 @@ char* page_spec_to_string(const page_spec* const spec, size_t* const plen)
 		*plen = n;
 
 	return str;
+}
+
+static
+int page_in_range(const void* key, const void* item)
+{
+	const unsigned page_no = (unsigned)(uintptr_t)key;
+	const page_range* const range = (const page_range*)item;
+
+	if(page_no < range->first)
+		return -1;
+
+	if(page_no > range->last)
+		return 1;
+
+	return 0;
+}
+
+const page_range* find_page_range(const page_spec* const spec, const unsigned page_no)
+{
+	return bsearch((const void*)(uintptr_t)page_no,
+				   spec->ranges, spec->len, sizeof(page_range),
+				   page_in_range);
 }
 
 #ifdef EXTEND_PRINTF
