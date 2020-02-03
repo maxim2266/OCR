@@ -62,7 +62,7 @@ const char* check_dir(const char* dir)
 	return dir;
 }
 
-#define format(dest, fmt, ...)	libc_int(asprintf((dest), fmt, ##__VA_ARGS__), "asprintf")
+#define format(dest, fmt, ...)	just(asprintf((dest), fmt, ##__VA_ARGS__))
 
 // command line parameters
 typedef struct
@@ -202,21 +202,18 @@ void ddjvu(const command* const cmd)
 	{
 		info("extracting all pages");
 
-		execlp("ddjvu", "ddjvu", "-format=pgm", "-mode=black", "-eachpage", cmd->file, fmt, NULL);
+		just(execlp("ddjvu", "ddjvu", "-format=pgm", "-mode=black", "-eachpage", cmd->file, fmt, NULL));
 	}
 	else
 	{
 		char* spec;
 
-		libc_int(asprintf(&spec, "-page=%s", page_spec_to_string(cmd->spec, NULL)), "asprintf");
+		format(&spec, "-page=%s", page_spec_to_string(cmd->spec, NULL));
 
 		info("extracting pages %s", spec + sizeof("-page"));
 
-		execlp("ddjvu", "ddjvu", "-format=pgm", "-mode=black", "-eachpage", spec, cmd->file, fmt, NULL);
+		just(execlp("ddjvu", "ddjvu", "-format=pgm", "-mode=black", "-eachpage", spec, cmd->file, fmt, NULL));
 	}
-
-	// exec() has failed
-	die(errno, "failed to start \"ddjvu\" tool");
 }
 
 // get the number of pages in a pdf file, because pdftoppm gives an error
@@ -262,11 +259,11 @@ unsigned pdf_num_pages(const char* const fname)
 				++s;
 
 			// read the number
-			if(isdigit(*s))
+			if(*s >= '0' && *s <= '9')
 			{
 				num_pages = *s++ - '0';
 
-				while(isdigit(*s))
+				while(*s >= '0' && *s <= '9')
 					num_pages = 10 * num_pages + *s++ - '0';
 
 				// skip remaining whitespace, if any
@@ -294,11 +291,7 @@ unsigned pdf_num_pages(const char* const fname)
 	if(line)
 		free(line);
 
-	// return code
-	const int ret = pclose(stream);
-
-	if(ret)
-		die(0, "error reading the number of pages in file \"%s\" (return code %d)", fname, ret);
+	just(pclose(stream));
 
 	if(num_pages < 0)
 		die(0, "error reading the number of pages in file \"%s\" (number not found)", fname);

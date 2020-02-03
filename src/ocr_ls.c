@@ -5,7 +5,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -14,7 +13,7 @@
 
 static const char usage_string[] =
 "Usage:\t" PROG_NAME " [OPTION]... [DIR]\n"
-"List image or text files (aka pages) produced by ocr-* tools in directory DIR,\n"
+"List image or text files (aka pages) produced by ocr-* tools, from the directory DIR,\n"
 "ordered by page number.\n\n"
 "Options:\n"
 "  -0,--null\n"
@@ -116,28 +115,38 @@ void parse_options(command* const cmd, int argc, char** argv)
 	}
 }
 
+// error check for child process
+static
+int _just_int_impl(const int ret, const char* const file, const int line)
+{
+	if(ret < 0)
+		_die(errno, "internal error: file %s, line %d", file, line);
+
+	return ret;
+}
+
+#define _just(expr)	\
+	_Generic((expr), 	\
+		int:		_just_int_impl,	\
+		default: 	NULL	\
+	)((expr), __FILE__, __LINE__)
+
 // file list
-static __attribute__((noreturn))
+static
 void child_proc(const command* const cmd, int pfd[2])
 {
-	_libc_int(close(pfd[0]), "close");				// unused read end
-	_libc_int(dup2(pfd[1], STDOUT_FILENO), "dup2");	// dup write end to stdout
-	_libc_int(close(pfd[1]), "close");				// close write end
+	_just(close(pfd[0]));				// unused read end
+	_just(dup2(pfd[1], STDOUT_FILENO));	// dup write end to stdout
+	_just(close(pfd[1]));				// close write end
 
 	// format regex
-	static
-	const char regex_fmt[] = ".*/page-[0-9]{1,4}\\.%s$";
-
 	char regex[64];
 
-	sprintf(regex, regex_fmt, cmd->ext);
+	sprintf(regex, ".*/page-[0-9]{1,4}\\.%s$", cmd->ext);
 
 	// exec command
-	execlp("find", "find", cmd->dir, "-maxdepth", "1", "-regextype", "posix-egrep",
-		   "-type", "f", "-regex", regex, "-print0", NULL);
-
-	// can only get here if the above exec() call has failed
-	_die(errno, "internal error (execlp)");
+	_just(execlp("find", "find", cmd->dir, "-maxdepth", "1", "-regextype", "posix-egrep",
+				 "-type", "f", "-regex", regex, "-print0", NULL));
 }
 
 static
@@ -146,7 +155,7 @@ str_list* read_file_list(const int fd)
 	str_list* list = NULL;
 
 	// open input stream
-	FILE* const stream = libc_ptr(fdopen(fd, "r"), "fdopen");
+	FILE* const stream = just(fdopen(fd, "r"));
 
 	// read command output
 	char* line = NULL;
@@ -160,7 +169,7 @@ str_list* read_file_list(const int fd)
 	if(line)
 		free(line);
 
-	libc_int(fclose(stream), "fclose");
+	just(fclose(stream));
 
 	return list;
 }
@@ -176,10 +185,10 @@ unsigned page_no(const str name, const str ext)
 
 	unsigned page_no = 0, k = 1;
 
-	for(--s; s > base && isdigit(*s); --s, k *= 10)
+	for(--s; s > base && *s >= '0' && *s <= '9'; --s, k *= 10)
 		page_no += k * (*s - '0');
 
-	if(*s != '-' || s == base)
+	if(*s != '-' || s == base || page_no == 0)
 		die(0, "internal error (page number from: \"%s\")", base);
 
 	return page_no;
@@ -212,17 +221,18 @@ str_list* list_files(const command* const cmd)
 	// pipe for stdout redirect
 	int pfd[2];
 
-	libc_int(pipe(pfd), "pipe");
+	just(pipe(pfd));
+
+	// flush all output streams
+	just(fflush(NULL));
 
 	// fork
-	fflush(NULL);	// flush all output streams
-
-	const int pid = libc_int(fork(), "fork");
+	const int pid = just(fork());
 
 	if(pid == 0)	// child process
 		child_proc(cmd, pfd);
 
-	libc_int(close(pfd[1]), "close");	// write end
+	just(close(pfd[1]));	// write end
 
 	// read file list
 	str_list* list = read_file_list(pfd[0]);
@@ -230,7 +240,7 @@ str_list* list_files(const command* const cmd)
 	// wait for the child to terminate
 	int status;
 
-	libc_int(waitpid(pid, &status, 0), "waitpid");
+	just(waitpid(pid, &status, 0));
 
 	if(WIFEXITED(status))
 	{
@@ -266,10 +276,8 @@ void print_list(const str_list* const list, char delim)
 		}
 	}
 
-	if(fflush(NULL) != 0)	// just in case
-		die(errno, "internal error (fflush)");
-
-	libc_int(writev(STDOUT_FILENO, vec, len), "writev");
+	just(fflush(NULL));
+	just(writev(STDOUT_FILENO, vec, len));
 	mem_free(vec);
 }
 

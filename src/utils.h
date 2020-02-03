@@ -4,9 +4,46 @@
 #include <error.h>
 #include <errno.h>
 
-// error termination
+// error exit
 #define die(code, msg, ...) 	error(1, (code), "" msg, ##__VA_ARGS__)
 #define _die(code, msg, ...)	do { error(0, (code), "" msg, ##__VA_ARGS__); _exit(1); } while(0)
+
+// error checking
+#define just(expr)	\
+	_Generic((expr), 	\
+			long:		_check_int_ret,	\
+			int:		_check_int_ret,	\
+			FILE*:		_check_ptr_ret,	\
+			void*:		_check_ptr_ret,	\
+			default: 	NULL	\
+	)((expr), __FILE__, __LINE__)
+
+static inline
+int _check_int_ret(const int ret, const char* const file, const int line)
+{
+	if(ret < 0)
+		error(1, errno, "internal error: file %s, line %d", file, line);
+
+	return ret;
+}
+
+static inline
+long _check_long_ret(const long ret, const char* const file, const int line)
+{
+	if(ret < 0)
+		error(1, errno, "internal error: file %s, line %d", file, line);
+
+	return ret;
+}
+
+static inline
+void* _check_ptr_ret(void* const ret, const char* const file, const int line)
+{
+	if(!ret)
+		error(1, errno, "internal error: file %s, line %d", file, line);
+
+	return ret;
+}
 
 // unused parameter
 #define UNUSED(x) UNUSED_ ## x __attribute__((unused))

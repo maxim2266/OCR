@@ -3,7 +3,6 @@
 #include "page_spec.h"
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 
@@ -167,18 +166,18 @@ char* page_spec_to_string(const page_spec* const spec, size_t* const plen)
 	if(spec && spec->len > 0)
 	{
 		// memory stream
-		FILE* const ms = libc_ptr(open_memstream(&str, &n), "open_memstream");
+		FILE* const ms = just(open_memstream(&str, &n));
 
 		// iterate the spec ranges
 		const page_range* p = spec->ranges;
 		const page_range* const end = p + spec->len;
 
-		libc_int(fprintf(ms, "%u-%u", p->first, p->last), "fprintf");
+		just(fprintf(ms, "%u-%u", p->first, p->last));
 
 		for(++p; p < end; ++p)
-			libc_int(fprintf(ms, ",%u-%u", p->first, p->last), "fprintf");
+			just(fprintf(ms, ",%u-%u", p->first, p->last));
 
-		fclose(ms);
+		just(fclose(ms));
 	}
 
 	if(plen)
