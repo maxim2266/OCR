@@ -66,6 +66,11 @@ set-crop-val() {
 	eval "${1^^}"='$p'
 }
 
+# WxH of the image
+image-size() {
+	pamfile "$1" | sed -nE 's/^.+\<([0-9]+)\s+by\s+([0-9]+).*$/\1 \2/p'
+}
+
 # crop values
 L=0; R=0; T=0; B=0
 
@@ -90,9 +95,10 @@ shift $(( OPTIND - 1 ))
 IN="$1"
 
 [[ -n "$IN" ]] || die "input file is not specified"
+(( $# == 1 )) || die "cannot process more than one file at a time"
 
 # input image dimensions
-read -r W H < <("$(dirname "$0")/image-size" "$IN") || exit 1
+read -r W H < <(image-size "$IN") || exit 1
 
 # calculations
 read -r L R T B < <(bc -q <<-EOF
