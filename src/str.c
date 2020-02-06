@@ -57,7 +57,7 @@ void str_free(const str s)
 
 int str_cmp(const str s1, const str s2)
 {
-	return strcmp(str_ptr(s1), str_ptr(s2));
+	return strcmp(str_ptr(s1), str_ptr(s2));	// ???
 }
 
 

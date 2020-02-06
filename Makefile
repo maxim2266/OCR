@@ -6,7 +6,7 @@ MAKEFLAGS += --no-builtin-variables
 TOOLSET_VER := $(shell head -n 1 version)
 
 # programs to compile
-PROGS := ocr-open ocr-ls
+PROGS := ocr-open ocr-ls ocr
 
 # flags
 CFLAGS := $(filter-out -g,$(shell dpkg-buildflags --get CFLAGS))	\
@@ -46,7 +46,14 @@ ocr-open: $(addprefix $(SRC)/,$(OCR_OPEN_SRC))
 	gcc $(CFLAGS) -DPROG_NAME=\"$@\" -o $@ $(filter %.c,$+) -lmagic
 
 # ocr-ls
-OCR_LS_SRC := $(COMMON_SRC) ocr_ls.c page_spec.c page_spec.h str.h str.c
+OCR_LS_SRC := $(COMMON_SRC) ocr_ls.c page_spec.c page_spec.h str.h str.c list_pages.h list_pages.c
 
 ocr-ls: $(addprefix $(SRC)/,$(OCR_LS_SRC))
+	gcc $(CFLAGS) -DPROG_NAME=\"$@\" -o $@ $(filter %.c,$+)
+
+# ocr
+OCR_SRC := $(COMMON_SRC) ocr.c tesseract.h tesseract.c str.h str.c \
+		page_spec.h page_spec.c list_pages.h list_pages.c
+
+ocr: $(addprefix $(SRC)/,$(OCR_SRC))
 	gcc $(CFLAGS) -DPROG_NAME=\"$@\" -o $@ $(filter %.c,$+)

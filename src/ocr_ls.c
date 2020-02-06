@@ -1,39 +1,34 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "page_spec.h"
-#include "str.h"
+#include "list_pages.h"
 
 #include <stdio.h>
-#include <string.h>
 #include <getopt.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <sys/uio.h>
-#include <unistd.h>
 
 static const char usage_string[] =
-"Usage:\t" PROG_NAME " [OPTION]... [DIR]\n"
-"List image or text files (aka pages) produced by ocr-* tools, from the directory DIR,\n"
-"ordered by page number.\n\n"
-"Options:\n"
-"  -0,--null\n"
-"         Output items are terminated by a null character instead of by newline.\n\n"
-"  -t,--text\n"
-"         List text files instead of images.\n\n"
-"  -p,--pages=SPEC\n"
-"         Pages to list. A page specification contains one or more comma-separated page\n"
-"         ranges. A page range is either a page number, or two page numbers separated by\n"
-"         a dash. In the last range, the second page number may be omitted, meaning all\n"
-"         the remaining pages of the document. For instance, specification \"1-10\" outputs\n"
-"         pages 1 to 10, and specification \"1,3,5-\" outputs pages 1 and 3, followed by\n"
-"         all the pages starting from page 5 to the end of the document.\n"
-"         (optional, default: all pages)\n\n"
-"  -f,--fail-on-empty\n"
-"         Fail if no files found.\n\n"
-"  -h,--help\n"
-"         Show help and exit.\n\n"
-"  -v,--version\n"
-"         Show version and exit.\n";
+	"Usage:\t" PROG_NAME " [OPTION]... [DIR]\n"
+	"List image or text files (aka pages) produced by ocr-* tools, from the directory DIR,\n"
+	"ordered by page number.\n\n"
+	"Options:\n"
+	"  -0,--null\n"
+	"         Output items are terminated by a null character instead of by newline.\n\n"
+	"  -t,--text\n"
+	"         List text files instead of images.\n\n"
+	"  -p,--pages=SPEC\n"
+	"         Pages to list. A page specification contains one or more comma-separated page\n"
+	"         ranges. A page range is either a page number, or two page numbers separated by\n"
+	"         a dash. In the last range, the second page number may be omitted, meaning all\n"
+	"         the remaining pages of the document. For instance, specification \"1-10\" outputs\n"
+	"         pages 1 to 10, and specification \"1,3,5-\" outputs pages 1 and 3, followed by\n"
+	"         all the pages starting from page 5 to the end of the document.\n"
+	"         (optional, default: all pages)\n\n"
+	"  -f,--fail-on-empty\n"
+	"         Fail if no files found.\n\n"
+	"  -h,--help\n"
+	"         Show help and exit.\n\n"
+	"  -v,--version\n"
+	"         Show version and exit.\n";
 
 // command line parameters
 typedef struct
@@ -115,150 +110,6 @@ void parse_options(command* const cmd, int argc, char** argv)
 	}
 }
 
-// error check for child process
-static
-int _just_int_impl(const int ret, const char* const file, const int line)
-{
-	if(ret < 0)
-		_die(errno, "internal error: file %s, line %d", file, line);
-
-	return ret;
-}
-
-#define _just(expr)	\
-	_Generic((expr), 	\
-		int:		_just_int_impl,	\
-		default: 	NULL	\
-	)((expr), __FILE__, __LINE__)
-
-// file list
-static
-void child_proc(const command* const cmd, int pfd[2])
-{
-	_just(close(pfd[0]));				// unused read end
-	_just(dup2(pfd[1], STDOUT_FILENO));	// dup write end to stdout
-	_just(close(pfd[1]));				// close write end
-
-	// format regex
-	char regex[64];
-
-	sprintf(regex, ".*/page-[0-9]{1,4}\\.%s$", cmd->ext);
-
-	// exec command
-	_just(execlp("find", "find", cmd->dir, "-maxdepth", "1", "-regextype", "posix-egrep",
-				 "-type", "f", "-regex", regex, "-print0", NULL));
-}
-
-static
-str_list* read_file_list(const int fd)
-{
-	str_list* list = NULL;
-
-	// open input stream
-	FILE* const stream = just(fdopen(fd, "r"));
-
-	// read command output
-	char* line = NULL;
-	size_t cap = 0;
-	ssize_t len;
-
-	while((len = getdelim(&line, &cap, 0, stream)) >= 0)
-		if(len > 0)
-			list = str_list_append(list, str_make_copy(line, len));
-
-	if(line)
-		free(line);
-
-	just(fclose(stream));
-
-	return list;
-}
-
-static
-unsigned page_no(const str name, const str ext)
-{
-	const char* const base = str_ptr(name);
-	const char* s = base + str_len(name) - str_len(ext) - 1;
-
-	if(s <= base || *s != '.')
-		die(0, "internal error (page number from: \"%s\")", s);
-
-	unsigned page_no = 0, k = 1;
-
-	for(--s; s > base && *s >= '0' && *s <= '9'; --s, k *= 10)
-		page_no += k * (*s - '0');
-
-	if(*s != '-' || s == base || page_no == 0)
-		die(0, "internal error (page number from: \"%s\")", base);
-
-	return page_no;
-}
-
-static
-str_list* apply_spec(str_list* const src, const command* const cmd)
-{
-	if(!cmd->spec || str_list_is_empty(src))
-		return src;
-
-	const str ext = str_lit_from_ptr(cmd->ext);
-
-	str_list* res = NULL;
-
-	const str* const end = src->strings + src->len;
-
-	for(str* s = src->strings; s < end; ++s)
-		if(find_page_range(cmd->spec, page_no(*s, ext)))
-			res = str_list_append(res, str_move(s));
-
-	str_list_free(src);
-
-	return res;
-}
-
-static
-str_list* list_files(const command* const cmd)
-{
-	// pipe for stdout redirect
-	int pfd[2];
-
-	just(pipe(pfd));
-
-	// flush all output streams
-	just(fflush(NULL));
-
-	// fork
-	const int pid = just(fork());
-
-	if(pid == 0)	// child process
-		child_proc(cmd, pfd);
-
-	just(close(pfd[1]));	// write end
-
-	// read file list
-	str_list* list = read_file_list(pfd[0]);
-
-	// wait for the child to terminate
-	int status;
-
-	just(waitpid(pid, &status, 0));
-
-	if(WIFEXITED(status))
-	{
-		if((status = WEXITSTATUS(status)) != 0)
-			exit(status);
-	}
-	else if(WIFSIGNALED(status))
-		die(0, "internal error (child terminated by signal %s)", strsignal(WTERMSIG(status)));
-
-	// apply spec
-	list = apply_spec(list, cmd);
-
-	// sort
-	str_list_sort(list);
-
-	return list;
-}
-
 static
 void print_list(const str_list* const list, char delim)
 {
@@ -287,7 +138,7 @@ int main(int argc, char** argv)
 
 	parse_options(&cmd, argc, argv);
 
-	str_list* const list = list_files(&cmd);
+	str_list* const list = list_files(cmd.dir, cmd.spec, cmd.ext);
 
 	if(!str_list_is_empty(list))
 		print_list(list, cmd.delim);

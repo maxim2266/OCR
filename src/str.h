@@ -52,4 +52,7 @@ void str_list_free(str_list* const list);
 void str_list_sort(str_list* const list);
 
 static inline
-bool str_list_is_empty(const str_list* const list) { return !list || (list->len == 0); }
+size_t str_list_len(const str_list* const list) { return list ? list->len : 0; }
+
+static inline
+bool str_list_is_empty(const str_list* const list) { return str_list_len(list) == 0; }

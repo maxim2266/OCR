@@ -1,49 +1,31 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <error.h>
 #include <errno.h>
+#include <unistd.h>
 
 // error exit
 #define die(code, msg, ...) 	error(1, (code), "" msg, ##__VA_ARGS__)
-#define _die(code, msg, ...)	do { error(0, (code), "" msg, ##__VA_ARGS__); _exit(1); } while(0)
 
 // error checking
 #define just(expr)	\
 	_Generic((expr), 	\
-			long:		_check_int_ret,	\
+			ssize_t:	_check_long_ret,	\
 			int:		_check_int_ret,	\
 			FILE*:		_check_ptr_ret,	\
 			void*:		_check_ptr_ret,	\
 			default: 	NULL	\
 	)((expr), __FILE__, __LINE__)
 
-static inline
-int _check_int_ret(const int ret, const char* const file, const int line)
-{
-	if(ret < 0)
-		error(1, errno, "internal error: file %s, line %d", file, line);
+// 'just' helpers
+int _check_int_ret(const int ret, const char* const file, const int line);
+long _check_long_ret(const ssize_t ret, const char* const file, const int line);
+void* _check_ptr_ret(void* const ret, const char* const file, const int line);
 
-	return ret;
-}
-
-static inline
-long _check_long_ret(const long ret, const char* const file, const int line)
-{
-	if(ret < 0)
-		error(1, errno, "internal error: file %s, line %d", file, line);
-
-	return ret;
-}
-
-static inline
-void* _check_ptr_ret(void* const ret, const char* const file, const int line)
-{
-	if(!ret)
-		error(1, errno, "internal error: file %s, line %d", file, line);
-
-	return ret;
-}
+// exit status check
+void check_exit_status(int status);
 
 // unused parameter
 #define UNUSED(x) UNUSED_ ## x __attribute__((unused))
@@ -58,11 +40,6 @@ void mem_free(const void* const p)
 	if(p)
 		free((void*)p);
 }
-
-// error checks
-int libc_int(const int ret, const char* const func_name);
-void* libc_ptr(void* const ptr, const char* const func_name);
-int _libc_int(const int ret, const char* const func_name);
 
 // min/max functions
 // see https://gcc.gnu.org/onlinedocs/gcc/Typeof.html
