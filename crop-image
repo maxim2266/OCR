@@ -32,6 +32,8 @@
 
 set -o pipefail
 
+VER="v0.7.0"
+
 # display usage string and exit
 exit_with_usage() {
 	cat <<-EOF >&2
@@ -44,6 +46,8 @@ exit_with_usage() {
 	     Crop N% of the image from the specified edge. Options l,r,t,b stand for
 	     "left", "right", "top", and "bottom" respectively. Accepted range
 	     of values: from 0% to 99.99%.
+
+	Version: $VER
 	EOF
 
 	exit 1

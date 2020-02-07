@@ -14,7 +14,7 @@
 
 static const char usage_string[] =
 	"Usage:\t" PROG_NAME " [OPTION]... [ -- TESSERACT-OPTION...]\n\n"
-	"Run OCR on the specified range of pages in the directory DIR.\n\n"
+	"Run OCR on the specified range of pages.\n\n"
 	"Options:\n"
 	"  -p,--pages=SPEC\n"
 	"         Pages to list. A page specification contains one or more comma-separated page\n"
