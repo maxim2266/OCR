@@ -133,9 +133,7 @@ void check_tess_lang_opt(const char** args, const unsigned num_args)
 	const str_list* const langs = tess_langs();
 
 	// match each part separated by '+'
-	const char* lang = spec;
-
-	while(lang < spec + len)
+	for(const char* lang = spec; lang < spec + len; )
 	{
 		// next token
 		const char* end = strchr(lang, '+');
@@ -160,6 +158,11 @@ void check_tess_lang_opt(const char** args, const unsigned num_args)
 
 		lang += n + 1;
 	}
+
+	// disallow other instances of '-l' option
+	for(++opt_ind; opt_ind < num_args; ++opt_ind)
+		if(strcmp(args[opt_ind], "-l") == 0)
+			die(0, "only one tesseract '-l' option is allowed");
 }
 
 int main(int argc, char* argv[])
@@ -172,22 +175,19 @@ int main(int argc, char* argv[])
 	// check if tesseract is installed
 	tess_check();
 
+	// check language spec
+	check_tess_lang_opt(cmd.tess_argv, cmd.tess_argc);
+
 	// get file list
 	str_list* const files = list_files(cmd.dir, cmd.spec, "pgm");
 
 	if(str_list_is_empty(files))
 	{
-		if(cmd.spec)
-			info("no pages found in the range \"%s\"",
-				  page_spec_to_string(cmd.spec, NULL));
-		else
-			info("no pages found");
+		if(cmd.fail_on_empty)
+			error(2, 0, "no pages found");
 
-		exit(cmd.fail_on_empty ? 2 : 0);
+		return 0;
 	}
-
-	// check language spec
-	check_tess_lang_opt(cmd.tess_argv, cmd.tess_argc);
 
 	// run OCR
 	for(size_t i = 0; i < files->len; ++i)
@@ -199,8 +199,6 @@ int main(int argc, char* argv[])
 
 		tess_extract_text(file, cmd.tess_argv, cmd.tess_argc);
 	}
-
-	str_list_free(files);
 
 	return 0;
 }
