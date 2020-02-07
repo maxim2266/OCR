@@ -30,17 +30,20 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+set -o pipefail
+
 # display usage string and exit
 exit_with_usage() {
 	cat <<-EOF >&2
-	Usage: $(basename "$0") [OPTIONS]... FILE
+	Usage: $(basename "$0") [OPTION]... INPUT-FILE OUTPUT-FILE
 
-	Crop the borders of the image FILE.
+	Crop the borders of the image INPUT-FILE and write the result to OUTPUT-FILE.
+
 	Options:
-	  -{l,r,t,b} N  crop N% of the image from the specified edge; l,r,t,b stand for
-	                "left", "right", "top", and "bottom" respectively; valid range
-	                of values is from 0% to 99.99%
-	  -o FILE       write output to the FILE (optional, default: STDOUT)
+	  -{l,r,t,b} N
+	     Crop N% of the image from the specified edge. Options l,r,t,b stand for
+	     "left", "right", "top", and "bottom" respectively. Accepted range
+	     of values: from 0% to 99.99%.
 	EOF
 
 	exit 1
@@ -63,7 +66,7 @@ set-crop-val() {
 
 	[[ "$p" =~ ^0{1,2}(\.0{,2})?$ ]] && p=0	# convert to proper 0
 
-	eval "${1^^}"='$p'
+	eval "${1^^}"='"$p"'
 }
 
 # WxH of the image
@@ -77,12 +80,10 @@ L=0; R=0; T=0; B=0
 # command line parameters
 (( $# > 0 )) || exit_with_usage
 
-while getopts "l:t:r:b:o:h" OPT
+while getopts "l:t:r:b:" OPT
 do
 	case $OPT in
 		l|t|r|b) set-crop-val "$OPT" "$OPTARG"
-			;;
-		o)	OUT="$OPTARG"
 			;;
 		\?)	exit 1
 			;;
@@ -93,9 +94,10 @@ shift $(( OPTIND - 1 ))
 
 # input file
 IN="$1"
-
 [[ -n "$IN" ]] || die "input file is not specified"
-(( $# == 1 )) || die "cannot process more than one file at a time"
+
+OUT="$2"
+[[ -n "$OUT" ]] || die "output file is not specified"
 
 # input image dimensions
 read -r W H < <(image-size "$IN") || exit 1
@@ -115,11 +117,12 @@ read -r L R T B < <(bc -q <<-EOF
 EOF
 ) || exit 1
 
-# output redirect
-if [[ -n "$OUT" ]]; then
-	# https://stackoverflow.com/a/20564208
-	exec 1<&-
-	exec 1>"$OUT" || exit 1
-fi
+# temporary file
+TF="$(mktemp --tmpdir)" || exit 1
 
-exec pamcut -left "$L" -right "$R" -top "$T" -bottom "$B" "$IN"
+trap 'rm -f "$TF"' EXIT
+trap "exit 255" HUP INT QUIT TERM
+
+# crop image
+pamcut -left "$L" -right "$R" -top "$T" -bottom "$B" "$IN" > "$TF"	\
+&& mv "$TF" "$OUT"

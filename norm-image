@@ -31,15 +31,27 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 usage() {
-	cat >&2 <<EOF
-Usage:	$(basename "$0") INPUT-FILE OUTPUT-FILE
-Crop image to content, and then add white border 5% thick.
-EOF
+	cat >&2 <<-EOF
+	Usage:	$(basename "$0") INPUT-FILE OUTPUT-FILE
+	Crop image to content, and then add white border 5% thick.
+	EOF
+
+	exit 1
+}
+
+die() {
+	echo >&2 "$0: $*"
 	exit 1
 }
 
 # check parameters
-[ $# -eq 2 ] || usage
+[ $# -gt 0 ] || usage
+
+IN="$1"
+[ -n "$IN" ] || die "input file is not specified"
+
+OUT="$2"
+[ -n "$OUT" ] || die "output file is not specified"
 
 # normalise
-exec convert "$1" -fuzz '2%' -trim -bordercolor white -border '5%x5%' +repage "$2"
+exec convert "$IN" -fuzz '2%' -trim -bordercolor white -border '5%x5%' +repage "$OUT"
