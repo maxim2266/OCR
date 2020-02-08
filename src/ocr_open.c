@@ -202,7 +202,9 @@ void ddjvu(const command* const cmd)
 	{
 		info("extracting all pages");
 
-		just(execlp("ddjvu", "ddjvu", "-format=pgm", "-mode=black", "-eachpage", cmd->file, fmt, NULL));
+		just(execlp("ddjvu", program_invocation_name,
+					"-format=pgm", "-mode=black", "-eachpage",
+					cmd->file, fmt, NULL));
 	}
 	else
 	{
@@ -212,7 +214,9 @@ void ddjvu(const command* const cmd)
 
 		info("extracting pages %s", spec + sizeof("-page"));
 
-		just(execlp("ddjvu", "ddjvu", "-format=pgm", "-mode=black", "-eachpage", spec, cmd->file, fmt, NULL));
+		just(execlp("ddjvu", program_invocation_name,
+					"-format=pgm", "-mode=black", "-eachpage",
+					spec, cmd->file, fmt, NULL));
 	}
 }
 

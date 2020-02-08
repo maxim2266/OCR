@@ -1,87 +1,144 @@
 # OCR tools
-An ever growing collection of tools to perform [OCR](https://en.wikipedia.org/wiki/Optical_character_recognition).
+The ever growing collection of tools to perform [OCR](https://en.wikipedia.org/wiki/Optical_character_recognition).
 
 ### Motivation
 
-Doing a good quality OCR in one go is hard. Usually the process includes a number of iterative steps to improve the original
-image quality in order to achieve reasonable recognition, followed by some manual correction of the output text.
-This is not a problem when digitising a page or two, but processing a book of 500 pages makes
-things a lot harder. Depending on the hardware, the OCR stage itself may take tens of minutes to complete, and the
-other image processing stages may take considerable time as well. The only solution seems to be splitting the process
-into a number of steps where each step can be run (and rerun) independently until a reasonable quality of the output
-is achieved. This toolset is aimed to support that kind of incremental approach.
-
-### OCR Process
-
-In general, the process of converting a document to text includes the following steps:
-
-``` image-extraction -> image-processing -> OCR -> text-postprocessing```
-
-The image extraction and OCR steps are relatively easy to automate, and this toolset provides two simple
-scripts to do just that. The image processing step depends heavily on the input image quality and may involve
-a number of different tools. This toolset provides a few scripts that may be useful for building an image processing pipeline.
-Text post-processing can often be done using the good old Unix `sed` command, at least for the English language,
-other languages usually require a more advanced regular expression engine with full Unicode support (think `perl`).
+Achieving a good quality OCR in one go is not easy. Depending on the quality of the input,
+the process may include a number of iterations to improve the original image(s) in order
+to achieve reasonable recognition quality, followed by some (often manual) correction of
+the recognised text to remove various OCR errors. This is not a massive problem when
+digitising a page or two, but processing a book of 500 pages makes things a lot harder.
+This project aims to help with complex OCR projects, but instead of providing one monolithic
+tool that would include all the processing a user can possibly want, here we develop a number of
+smaller instruments that can do only the obviously needed steps like OCR itself, but also
+allowing for user-defined processing to be integrated into the pipeline.
 
 ### Tools
-#### Image extractor
 
+The toolset wraps around a number of well-known programs that perform tasks like PDF
+or image processing, character recognition, etc., aiming to create an environment for
+iterative processing of large documents with the ability to utilise custom scripts.
+
+For example, given a document `text.pdf`, the simplest OCR session may look like
+the following:
+
+```sh
+▶ mkdir book && cd book
+▶ ocr-open ../text.pdf
+ocr-open: processing file "../text.pdf"
+ocr-open: extracting all pages
+▶ ocr
+ocr: processing page 1 [ "./page-01.pgm" ]
+ocr: processing page 2 [ "./page-02.pgm" ]
+{ ... }
+ocr: processing page 15 [ "./page-15.pgm" ]
+▶ ocr-ls --text | xargs cat
+{ ... recognised text }
+▶
 ```
-▶ ./extract-images
-Usage: extract-images [OPTION]... FILE
-Renders pages of a .pdf or .djvu FILE to grayscale images in PGM format.
-Options:
-  -f N     first page number (optional, default: 1)
-  -l N     last page number (optional, default: last page of the document)
-  -o DIR   output directory (optional, default: .)
-  -h       display this help and exit
+In this simple example we first create a directory and `cd` into it, after that we convert
+each page of the document `text.pdf` to an image using `ocr-open` tool, and then we do
+the actual character recognition via `ocr` tool. The last command gives an example of
+how other custom tools can be integrated into the process with the help of the `ocr-ls`
+utility. Here we use the standard Linux `cat` utility to display the recognised text.
+
+Internally, the toolset operates on images in [PGM](http://netpbm.sourceforge.net/doc/pgm.html)
+format, that has been chosen as the lowest common denominator between all the tools
+wrapped by this toolset, and also because it is understood by the good old `netpbm`
+package, which is often a bit faster than `imagemagic` when it comes to simple
+operations like image cropping.
+
+All images are named using pattern `page-N.pgm`, where `N` is the page number ranging from
+1 to the maximum of 9999, as in the source document, and with a sufficient number
+of leading zeroes to make sure that a list of files sorted alphabetically gives the correct
+page order. The text recognised from each page is stored in a file named using the same pattern,
+but with the `.txt` extension. Most of the tools in this toolset can operate on a sub-range of
+pages via `-p` or `--pages` command line option, see help (`-h` or `--help`) on
+a particular tool. Generally, the toolset is designed to operate on "pages" rather
+than files, for convenience.
+
+Another thing these tools are designed to do is to check all the parameters and input
+files before passing them over to the underlying programs, because the error messages
+from those programs are sometimes a bit cryptic.
+
+For details on the command line options supported by a particular tool, simply
+invoke the tool with `-h` or `--help` option.
+
+The included tools are:
+
+##### `ocr-open`
+
+This is usually the first command to invoke when starting a new project. The tool
+converts each page of the specified document to a separate image. There are options
+to specify the range of pages to extract, and the destination directory.
+Input document can be either in `.pdf` or `.djvu` format. Internally the tool invokes
+either `ddjvu` or `pdftoppm` program, depending on the type of the input file.
+
+##### `ocr-ls`
+
+The main purpose of the tool is to produce a list of files for bulk-processing.
+The tool outputs a list of files, text or images, from the selected range(s) of pages, in order.
+A simple example is given above, where it is used to concatenate all the recognised text.
+For a more involved example, consider the situation where every page except the first one
+has a page number at the bottom that we don't want to see in the recognised text,
+and so we want to crop (for example) 6.5% from the bottom of each image starting from
+the page 2, and till the end of the document. This can be achieved with the following
+command:
+```sh
+ocr-ls -p 2- | xargs -I{} -n 1 crop-image -b 6.5% {} {}
+```
+_(see below for the description of the `crop-image` command)_
+
+##### `ocr`
+
+The tool invokes `tesseract` program to recognise text from the given images. There
+are options to specify the range of pages to process, as well as the directory
+where the image files are stored. Per each page, the recognised text is written to
+the same directory, and to the file with the same name but with a `.txt` extension.
+For example, this is how to extract text in Russian and English, from pages
+5 to 10 only, all located in the directory `book`:
+
+```sh
+ocr -p 5-10 -d book/ -- -l rus+eng
+```
+Note: everything to the right from `"--"` is passed over to the `tesseract` program.
+
+##### `crop-image`
+
+Crops the specified image. The amount of space to crop is given as the percentage of
+the image's width or height, which is often more convenient than using pixels. Wraps
+around the `pamcut` utility from `netpbm` toolset.
+
+##### `norm-image`
+
+A tiny utility that crops the image to content and then adds 5% white border. Wraps around
+ImageMagic `convert` tool. Rarely useful, except the situations where there are
+poor quality scanned images with some dust bits on the space surrounding the text,
+that sometimes get recognised as punctuation.
+
+### Installation
+
+The toolset makes use of external tools that need to be installed first:
+```sh
+sudo apt install netpbm imagemagick tesseract-ocr djvulibre-bin poppler-utils
 ```
 
-The output is a set of grey-scale images in `.pgm` format, one per page.
-
-#### OCR on a single image
-```
-▶ ./extract-text
-Usage:	extract-text FILE [OPTION]...
-  Run OCR on the given image FILE. Recognised text is written to STDOUT.
-  All the given options are passed down to the "tesseract" tool.
+Optionally, install language packs for `tesseract`, for example:
+```sh
+sudo apt install tesseract-ocr-rus
 ```
 
-The main purpose of the script is to validate command line parameters before passing
-them down to `tesseract`, because error messages from `tesseract` are rather cryptic.
-
-#### OCR
-```
-▶ ./ocr
-Usage:	ocr DIR [OPTION]...
-  Run OCR on all .pgm files in the given directory DIR.
-  Recognised text is written to STDOUT. All the given
-  options are passed down to the "tesseract" tool.
-```
-
-#### Image cropping
-```
-▶ ./crop-image
-Usage: crop-image [OPTIONS]... FILE
-
-Crop the borders of the image FILE.
-Options:
-  -{l,r,t,b} N  crop N% of the image from the specified edge; l,r,t,b stand for
-                "left", "right", "top", and "bottom" respectively; valid range
-                of values is from 0% to 99.99%
-  -o FILE       write output to the FILE (optional, default: STDOUT)
-```
-This crops image with `pamcut`, with crop values given in percents, not in pixels.
-
-#### Image normaliser
-```
-▶ ./norm-image
-Crop image to content, and then add white border 5% thick.
-
-Usage:
-	norm-image INPUT-FILE OUTPUT-FILE
+Now, the preferred way to install the toolset is to grab the archive attached to the latest
+[release](releases/)
+on github (starting from version 0.8), and extract it to a directory listed on the
+`$PATH`. Alternatively, if the very recent but yet unreleased updates are required,
+just clone the project from github and run `make release` from the root directory
+of the project. This will compile the toolset and create the archive with all the
+utilities, which can then be extracted to a directory on the `$PATH`. The compilation
+step requires more dependencies to be installed:
+```sh
+sudo apt install build-essential libmagic-dev
 ```
 
-##### Platform: Linux
-
-Tested on Linux Mint 19.2, will probably work on other Debian-based distributions as well.
+The toolset has been tested on Linux Mint 19.3, and will probably work on other Debian-based
+distributions as well. Supported `tesseract` version is 4.0.0 or later.
