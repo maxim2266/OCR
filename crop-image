@@ -32,7 +32,7 @@
 
 set -o pipefail
 
-VER="v0.7.0"
+VER="v0.8.0"
 
 # display usage string and exit
 exit_with_usage() {
@@ -47,7 +47,8 @@ exit_with_usage() {
 	     "left", "right", "top", and "bottom" respectively. Accepted range
 	     of values: from 0% to 99.99%.
 
-	Version: $VER
+	  -v
+	     Show version and exit.
 	EOF
 
 	exit 1
@@ -84,10 +85,12 @@ L=0; R=0; T=0; B=0
 # command line parameters
 (( $# > 0 )) || exit_with_usage
 
-while getopts "l:t:r:b:" OPT
+while getopts "l:t:r:b:v" OPT
 do
 	case $OPT in
 		l|t|r|b) set-crop-val "$OPT" "$OPTARG"
+			;;
+		v)	die "$VER"
 			;;
 		\?)	exit 1
 			;;
