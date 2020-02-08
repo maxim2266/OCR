@@ -128,8 +128,8 @@ Optionally, install language packs for `tesseract`, for example:
 sudo apt install tesseract-ocr-rus
 ```
 
-Now, the preferred way to install the toolset is to grab the archive attached to the latest
-[release](https://github.com/maxim2266/OCR/releases)
+Now, the preferred way to install the toolset is to grab the `ocr-*.tar.xz` archive 
+attached to the latest [release](https://github.com/maxim2266/OCR/releases)
 on github (starting from version 0.8), and extract it to a directory listed on the
 `$PATH`. Alternatively, if the very recent but yet unreleased updates are required,
 just clone the project from github and run `make release` from the root directory
