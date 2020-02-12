@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <magic.h>
 
@@ -399,6 +400,10 @@ int main(int argc, char** argv)
 
 	parse_options(&cmd, argc, argv);
 
+	// make sure stdin is closed on exec
+	just(fcntl(STDIN_FILENO, F_SETFD, fcntl(STDIN_FILENO, F_GETFD) | FD_CLOEXEC));
+
+	// dispatch on input file MIME type
 	const char* const mime = mime_type(cmd.file);
 
 	if(strcmp(mime, "image/vnd.djvu") == 0)

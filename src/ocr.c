@@ -9,6 +9,7 @@
 #include <string.h>
 #include <getopt.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #define info(fmt, ...) just(printf("%s: " fmt "\n", program_invocation_name, ##__VA_ARGS__))
 
@@ -171,6 +172,9 @@ int main(int argc, char* argv[])
 	command cmd;
 
 	parse_options(&cmd, argc, argv);
+
+	// make sure stdin is closed on exec
+	just(fcntl(STDIN_FILENO, F_SETFD, fcntl(STDIN_FILENO, F_GETFD) | FD_CLOEXEC));
 
 	// check if tesseract is installed
 	tess_check();

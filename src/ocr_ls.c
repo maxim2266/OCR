@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <getopt.h>
+#include <fcntl.h>
 #include <sys/uio.h>
 
 static const char usage_string[] =
@@ -138,6 +139,10 @@ int main(int argc, char** argv)
 
 	parse_options(&cmd, argc, argv);
 
+	// make sure stdin is closed on exec
+	just(fcntl(STDIN_FILENO, F_SETFD, fcntl(STDIN_FILENO, F_GETFD) | FD_CLOEXEC));
+
+	// get file list
 	str_list* const list = list_files(cmd.dir, cmd.spec, cmd.ext);
 
 	if(!str_list_is_empty(list))
