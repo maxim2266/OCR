@@ -116,6 +116,13 @@ ImageMagic `convert` tool. Rarely useful, except the situations where there are
 poor quality scanned images with some dust bits on the space surrounding the text,
 that sometimes get recognised as punctuation.
 
+##### `norm-text`
+
+A script to normalise text by removing hyphenation and line breaks inside paragraphs.
+Normally, `tesseract` separates paragraphs by empty lines, and this is required
+for the tool to work correctly. The tool takes its input from `stdin`, and
+writes to `stdout`.
+
 ### Installation
 
 The toolset makes use of external tools that need to be installed first:
@@ -128,7 +135,7 @@ Optionally, install language packs for `tesseract`, for example:
 sudo apt install tesseract-ocr-rus
 ```
 
-Now, the preferred way to install the toolset is to grab the `ocr-*.tar.xz` archive 
+Now, the preferred way to install the toolset is to grab the `ocr-*.tar.xz` archive
 attached to the latest [release](https://github.com/maxim2266/OCR/releases)
 on github (starting from version 0.8), and extract it to a directory listed on the
 `$PATH`. Alternatively, if the very recent but yet unreleased updates are required,
