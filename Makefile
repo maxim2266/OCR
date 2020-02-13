@@ -12,7 +12,7 @@ VER := $(shell head -n 1 $(VER_FILE))
 PROGS := ocr-open ocr-ls ocr
 
 # other scripts
-SCRIPTS := crop-image norm-image norm-text
+SCRIPTS := crop-image norm-image norm-text norm-page
 
 # flags
 CFLAGS := $(filter-out -g,$(shell dpkg-buildflags --get CFLAGS))	\

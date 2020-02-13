@@ -123,6 +123,15 @@ Normally, `tesseract` separates paragraphs by empty lines, and this is required
 for the tool to work correctly. The tool takes its input from `stdin`, and
 writes to `stdout`.
 
+##### `norm-page`
+
+Ensures the correct paragraph boundary at the end of the page. Takes one or more text
+files as input, and writes its output to `stdout`. Can be used in conjunction with
+other tools, for example:
+```sh
+ocr-ls -t | xargs norm-page | norm-text
+```
+
 ### Installation
 
 The toolset makes use of external tools that need to be installed first:

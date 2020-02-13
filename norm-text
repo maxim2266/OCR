@@ -1,4 +1,4 @@
-#!/usr/bin/perl -C7 -00 -wpl
+#!/usr/bin/perl -CSDA -00 -wpl
 
 # remove hyphenation
 s/(\p{Ll}\p{Blk=Diacriticals}*)-\n(\p{Ll})/$1$2/g;
