@@ -6,4 +6,4 @@ s/^\p{PosixSpace}+|\p{PosixSpace}+$//g;
 # extremely naive sentence boundary detector
 # see https://ir.shef.ac.uk/cloughie/papers/sentences.pdf for the problem description,
 # or just use Lingua::Sentence;
-$_ .= $_ =~ /[\.?!]$/ ? "\n\n" : "\n";
+$_ .= /[\.?!]$/ ? "\n\n" : "\n";
