@@ -15,8 +15,7 @@
 			ssize_t:	_check_long_ret,	\
 			int:		_check_int_ret,	\
 			FILE*:		_check_ptr_ret,	\
-			void*:		_check_ptr_ret,	\
-			default: 	NULL	\
+			void*:		_check_ptr_ret	\
 	)((expr), __FILE__, __LINE__)
 
 // 'just' helpers
