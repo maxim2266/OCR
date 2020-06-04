@@ -1,7 +1,8 @@
-#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 
 #include "list_pages.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <getopt.h>
 #include <fcntl.h>
@@ -115,7 +116,7 @@ static
 void print_list(const str_list* const list, char delim)
 {
 	struct iovec* const vec = mem_alloc(2 * list->len * sizeof(struct iovec));
-	int len = 0;
+	size_t len = 0;
 
 	for(size_t i = 0; i < list->len; ++i)
 	{
@@ -129,7 +130,19 @@ void print_list(const str_list* const list, char delim)
 	}
 
 	just(fflush(NULL));
-	just(writev(STDOUT_FILENO, vec, len));
+
+	// write chunks of no more than IOV_MAX strings each
+	struct iovec* s = vec;
+	struct iovec* const end = s + len;
+
+	while(s < end)
+	{
+		const size_t n = min(end - s, IOV_MAX);
+
+		just(writev(STDOUT_FILENO, s, n));
+		s += n;
+	}
+
 	mem_free(vec);
 }
 
