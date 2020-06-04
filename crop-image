@@ -32,7 +32,7 @@
 
 set -o pipefail
 
-VER="v0.8.1"
+VER="v0.8.2"
 
 # display usage string and exit
 exit_with_usage() {
