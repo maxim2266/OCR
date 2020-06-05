@@ -1,0 +1,3 @@
+[submodule "ext/str"]
+	path = ext/str
+	url = https://github.com/maxim2266/str
