@@ -1,10 +1,6 @@
-#define _GNU_SOURCE
-#define _POSIX_C_SOURCE	200809L
-
 #include "list_pages.h"
 #include "str.h"
 
-#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -24,8 +20,7 @@ int _just_int_impl(const int ret, const char* const file, const int line)
 
 #define _just(expr)	\
 	_Generic((expr), 	\
-		int:		_just_int_impl,	\
-		default: 	NULL	\
+		int:	_just_int_impl	\
 	)((expr), __FILE__, __LINE__)
 
 // file list
@@ -37,7 +32,7 @@ void child_proc(const char* const dir, const char* const ext, int pfd[2])
 	_just(close(pfd[1]));				// close write end
 
 	// format regex
-	char regex[64];
+	char regex[100];
 
 	sprintf(regex, ".*/page-[0-9]{1,4}\\.%s$", ext);
 
@@ -62,11 +57,11 @@ str_list* read_file_list(const int fd)
 
 	while((len = getdelim(&line, &cap, 0, stream)) >= 0)
 		if(len > 0)
-			list = str_list_append(list, str_make_copy(line, len));
+			list = str_list_append_copy(
+					list,
+					str_ref_chars(line, line[len - 1] == 0 ? (len - 1) : len));
 
-	if(line)
-		free(line);
-
+	mem_free(line);
 	just(fclose(stream));
 
 	return list;
@@ -74,11 +69,17 @@ str_list* read_file_list(const int fd)
 
 unsigned page_no(const str name, const str ext)
 {
+	if(!str_has_suffix(name, ext))
+		die(0, "internal error (no extension \"%.*s\" in file name \"%.*s\")",
+			(int)str_len(ext), str_ptr(ext),
+			(int)str_len(name), str_ptr(name));
+
 	const char* const base = str_ptr(name);
 	const char* s = base + str_len(name) - str_len(ext) - 1;
 
-	if(s <= base || *s != '.')
-		die(0, "internal error (page number from: \"%s\")", s);
+	if(*s != '.')
+		die(0, "internal error (unexpected extension in file name \"%.*s\")",
+			(int)str_len(name), str_ptr(name));
 
 	unsigned page_no = 0, k = 1;
 
@@ -86,7 +87,8 @@ unsigned page_no(const str name, const str ext)
 		page_no += k * (*s - '0');
 
 	if(*s != '-' || s == base || page_no == 0)
-		die(0, "internal error (page number from: \"%s\")", base);
+		die(0, "internal error (cannot get page number from file name \"%.*s\")",
+			(int)str_len(name), str_ptr(name));
 
 	return page_no;
 }
@@ -99,10 +101,8 @@ str_list* apply_spec(str_list* const src,
 	if(!spec || str_list_is_empty(src))
 		return src;
 
-	const str e = str_lit_from_ptr(ext);
-
+	const str e = str_ref(ext);
 	str_list* res = NULL;
-
 	const str* const end = src->strings + src->len;
 
 	for(str* s = src->strings; s < end; ++s)
@@ -110,7 +110,6 @@ str_list* apply_spec(str_list* const src,
 			res = str_list_append(res, str_move(s));
 
 	str_list_free(src);
-
 	return res;
 }
 
@@ -147,7 +146,8 @@ str_list* list_files(const char* const dir,
 	list = apply_spec(list, spec, ext);
 
 	// sort
-	str_list_sort(list);
+	if(list)
+		str_sort_range(str_order_asc, list->strings, list->len);
 
 	return list;
 }

@@ -1,9 +1,5 @@
-#define _GNU_SOURCE
-#define _POSIX_C_SOURCE	200809L
-
 #include "utils.h"
 
-#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -24,20 +20,6 @@ void check_exit_status(int status)
 
 		die(0, "child process terminated by signal %d: %s", sig, strsignal(sig));
 	}
-}
-
-// memory allocation fuctions
-void* mem_alloc(const size_t n)
-{
-	return just(malloc(n));
-}
-
-void* mem_realloc(void* p, const size_t n)
-{
-	if(n == 0)
-		die(0, "internal error: zero size in realloc(3)");
-
-	return just(realloc(p, n));
 }
 
 // program version display
@@ -86,3 +68,48 @@ void* _check_ptr_ret(void* const ret, const char* const file, const int line)
 	return ret;
 }
 
+// string list functions
+#define STR_LIST_INITIAL_CAP 32
+
+str_list* str_list_append(str_list* list, const str s)
+{
+	if(!list)
+	{
+		list = mem_alloc(sizeof(str_list) + STR_LIST_INITIAL_CAP * sizeof(str));
+
+		list->len = 0;
+		list->cap = STR_LIST_INITIAL_CAP;
+	}
+	else if(list->len == list->cap)
+	{
+		if(list->cap >= 1024 * 1024)
+			list->cap += list->cap / 2;
+		else
+			list->cap *= 2;
+
+		list = mem_realloc(list, sizeof(str_list) + list->cap * sizeof(str));
+	}
+
+	list->strings[list->len++] = s;
+	return list;
+}
+
+str_list* str_list_append_copy(str_list* list, const str s)
+{
+	str t = str_null;
+
+	str_cpy(&t, s);
+
+	return str_list_append(list, t);
+}
+
+void str_list_free(str_list* const list)
+{
+	if(list)
+	{
+		for(size_t i = 0; i < list->len; ++i)
+			str_free(list->strings[i]);
+
+		free(list);
+	}
+}

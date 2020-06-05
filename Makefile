@@ -18,7 +18,7 @@ SCRIPTS := crop-image norm-image norm-text norm-page
 CFLAGS := $(filter-out -g,$(shell dpkg-buildflags --get CFLAGS))	\
           $(shell dpkg-buildflags --get LDFLAGS)	\
           -s -std=c11 -Wall -Wextra -Wformat -Wl,--strip-all	\
-          -DPROG_VER=\"$(VER)\"
+          -DPROG_VER=\"$(VER)\" -D_GNU_SOURCE
 
 # source directory
 SRC := src

@@ -1,9 +1,6 @@
-#define _GNU_SOURCE
-
 #include "list_pages.h"
 
 #include <limits.h>
-#include <stdio.h>
 #include <getopt.h>
 #include <fcntl.h>
 #include <sys/uio.h>
@@ -112,40 +109,6 @@ void parse_options(command* const cmd, int argc, char** argv)
 	}
 }
 
-static
-void print_list(const str_list* const list, char delim)
-{
-	struct iovec* const vec = mem_alloc(2 * list->len * sizeof(struct iovec));
-	size_t len = 0;
-
-	for(size_t i = 0; i < list->len; ++i)
-	{
-		const str s = list->strings[i];
-
-		if(!str_is_empty(s))
-		{
-			vec[len++] = (struct iovec){ (void*)str_ptr(s), str_len(s) };
-			vec[len++] = (struct iovec){ &delim, 1 };
-		}
-	}
-
-	just(fflush(NULL));
-
-	// write chunks of no more than IOV_MAX strings each
-	struct iovec* s = vec;
-	struct iovec* const end = s + len;
-
-	while(s < end)
-	{
-		const size_t n = min(end - s, IOV_MAX);
-
-		just(writev(STDOUT_FILENO, s, n));
-		s += n;
-	}
-
-	mem_free(vec);
-}
-
 int main(int argc, char** argv)
 {
 	command cmd;
@@ -159,7 +122,10 @@ int main(int argc, char** argv)
 	str_list* const list = list_files(cmd.dir, cmd.spec, cmd.ext);
 
 	if(!str_list_is_empty(list))
-		print_list(list, cmd.delim);
+	{
+		str_join_range(stdout, str_ref_chars(&cmd.delim, 1), list->strings, list->len);
+		just(putchar(cmd.delim));
+	}
 	else if(fail_on_empty)
 		error(2, 0, "no files found");
 
