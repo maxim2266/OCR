@@ -145,12 +145,12 @@ sudo apt install tesseract-ocr-rus
 ```
 
 The preferred way to install the toolset is to grab the `ocr-*.tar.xz` archive
-attached to the latest [release](https://github.com/maxim2266/OCR/releases)
+attached to the latest [release](https://github.com/maxim2266/ocr/releases)
 on github (starting from version 0.8), and extract it to a directory listed on the
 `$PATH`. Alternatively, if the very recent but yet unreleased updates are required,
 just clone the project from github
 ```sh
-git clone --recursive https://github.com/maxim2266/OCR
+git clone --recursive https://github.com/maxim2266/ocr
 ```
 then install dependencies for the build
 ```sh
