@@ -50,7 +50,7 @@ $(SCRIPTS): $(VER_FILE)
 $(PROGS): $(VER_FILE)
 
 # programs ----------------------------------------------------------------------
-COMMON_SRC := utils.c utils.h page_spec.c page_spec.h
+COMMON_SRC := utils.c utils.h page_spec.c page_spec.h str.h str.c
 
 # ocr-open
 OCR_OPEN_SRC := $(COMMON_SRC) ocr_open.c
@@ -59,13 +59,13 @@ ocr-open: $(addprefix $(SRC)/,$(OCR_OPEN_SRC))
 	gcc $(CFLAGS) -DPROG_NAME=\"$@\" -o $@ $(filter %.c,$^) -lmagic
 
 # ocr-ls
-OCR_LS_SRC := $(COMMON_SRC) ocr_ls.c str.h str.c list_pages.h list_pages.c
+OCR_LS_SRC := $(COMMON_SRC) ocr_ls.c list_pages.h list_pages.c
 
 ocr-ls: $(addprefix $(SRC)/,$(OCR_LS_SRC))
 	gcc $(CFLAGS) -DPROG_NAME=\"$@\" -o $@ $(filter %.c,$^)
 
 # ocr
-OCR_SRC := $(COMMON_SRC) ocr.c tesseract.h tesseract.c str.h str.c list_pages.h list_pages.c
+OCR_SRC := $(COMMON_SRC) ocr.c tesseract.h tesseract.c list_pages.h list_pages.c
 
 ocr: $(addprefix $(SRC)/,$(OCR_SRC))
 	gcc $(CFLAGS) -DPROG_NAME=\"$@\" -o $@ $(filter %.c,$^)

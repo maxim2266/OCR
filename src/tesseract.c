@@ -1,6 +1,3 @@
-#define _GNU_SOURCE
-#define _POSIX_C_SOURCE	200809L
-
 #include "utils.h"
 #include "tesseract.h"
 
@@ -111,7 +108,7 @@ str_list* read_str_list(const int fd)
 			--len;
 
 		if(len > 0)
-			list = str_list_append(list, str_make_copy(line, len));
+			list = str_list_append_copy(list, str_ref_chars(line, len));
 	}
 
 	if(line)
@@ -260,21 +257,17 @@ void check_file(const str file)
 			name, (unsigned)info.st_mode & 0777);
 }
 
+#define EXT 	".pgm"
+#define EXT_LEN	(sizeof(EXT) - 1)
+
 static
-str tess_templ(const str name)
+void tess_templ(str* const dest, const str name)
 {
-	const char* const s = str_ptr(name);
-	const size_t s_len = str_len(name);
+	// check extension
+	if(!str_has_suffix(name, str_lit(EXT)))
+		die(0, "unexpected file name \"%.*s\"", (int)str_len(name), str_ptr(name));
 
-	// file name extension
-	const char* ext = memrchr(s, '.', s_len);
-	const size_t n = ext ? (ext - s) : 0;
-
-	// extension must be .pgm, but here we only check the length of it
-	if(s_len - n != sizeof(".pgm") - 1)
-		die(0, "unexpected file name \"%s\"", s);
-
-	return str_make_copy(s, n);
+	str_cpy(dest, str_ref_chars(str_ptr(name), str_len(name) - EXT_LEN));
 }
 
 // extract text from the given file
@@ -284,7 +277,9 @@ void tess_extract_text(const str file, const char** opts, const unsigned num_opt
 	check_file(file);
 
 	// template name
-	const str templ = tess_templ(file);
+	str templ = str_null;
+
+	tess_templ(&templ, file);
 
 	// args list
 	const char** const args = mem_alloc((6 + num_opts) * sizeof(char*));

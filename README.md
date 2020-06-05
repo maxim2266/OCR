@@ -144,17 +144,21 @@ Optionally, install language packs for `tesseract`, for example:
 sudo apt install tesseract-ocr-rus
 ```
 
-Now, the preferred way to install the toolset is to grab the `ocr-*.tar.xz` archive
+The preferred way to install the toolset is to grab the `ocr-*.tar.xz` archive
 attached to the latest [release](https://github.com/maxim2266/OCR/releases)
 on github (starting from version 0.8), and extract it to a directory listed on the
 `$PATH`. Alternatively, if the very recent but yet unreleased updates are required,
-just clone the project from github and run `make release` from the root directory
-of the project. This will compile the toolset and create the archive with all the
-utilities, which can then be extracted to a directory on the `$PATH`. The compilation
-step requires more dependencies to be installed:
+just clone the project from github
+```sh
+git clone --recursive https://github.com/maxim2266/OCR
+```
+then install dependencies for the build
 ```sh
 sudo apt install build-essential libmagic-dev
 ```
+and finally run `make release` from the root directory of the project. This will compile the
+toolset and create an archive with all the utilities, which can then be extracted to a directory
+on the `$PATH`.
 
 The toolset has been tested on Linux Mint 19.3, and will probably work on other Debian-based
 distributions as well. Supported `tesseract` version is 4.0.0 or later.
