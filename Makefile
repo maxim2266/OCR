@@ -15,9 +15,7 @@ PROGS := ocr-open ocr-ls ocr
 SCRIPTS := crop-image norm-image norm-text norm-page
 
 # flags
-CFLAGS := $(filter-out -g,$(shell dpkg-buildflags --get CFLAGS))	\
-          $(shell dpkg-buildflags --get LDFLAGS)	\
-          -s -std=c11 -Wall -Wextra -Wformat -Wl,--strip-all	\
+CFLAGS := -O2 -s -std=c11 -Wall -Wextra -Wformat -Wl,--strip-all	\
           -DPROG_VER=\"$(VER)\" -D_GNU_SOURCE
 
 # source directory
