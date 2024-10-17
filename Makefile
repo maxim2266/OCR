@@ -67,3 +67,8 @@ OCR_SRC := $(COMMON_SRC) ocr.c tesseract.h tesseract.c list_pages.h list_pages.c
 
 ocr: $(addprefix $(SRC)/,$(OCR_SRC))
 	gcc $(CFLAGS) -DPROG_NAME=\"$@\" -o $@ $(filter %.c,$^)
+
+# helpers -----------------------------------------------------------------------
+.PHONY: submodule-update
+submodule-update:
+	git submodule update --remote --merge
